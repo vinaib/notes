@@ -1,0 +1,60 @@
+#Repository
+## Every git repo contains .git folder. This contains all information and file.
+## As .git contains all info, your git repo must be as narrow as possible. Like one module as each git repo.
+## git version files not folders
+## commits are saved to timeline known as branch. A git repo has atleast one branch and by default that branch is called master.
+## Additional branches can be created
+
+# Minimal COnfiguration:
+## User's name
+## User's Email
+
+# git on Windows
+git config --global user.name "vinai"
+git config --global user.email "vinaibangala2001@gmail.com"
+git config --global core.editor "notepad++ -multiInst -nosession"
+
+# p4merge as Diff tool
+git config --global diff.tool p4merge
+git config --global difftool.p4merge.path "c:/program Files/Perforce/p4merge.exe"
+git config --global difftool.prompt false
+
+# configure p4merge as graphical merge tool
+git config --global merge.tool p4merge
+git config --global mergetool.p4merge.path "c:/program Files/Perforce/p4merge.exe"
+git config --global mergetool.prompt false
+
+# below command opens above configuration in notepad++
+git config --global -e
+
+#to list all git config
+git config --global -l
+
+# try out help
+git config --global --help
+
+
+# Windows git
+## gitBash: git-scm.com/download/win
+## notepad++: http: notepad-plus-plus.com
+## P4MErge: http://perforce.com
+
+## P4mege install on linux
+## extract downloaded archive
+## copy extracted bin, lib folder to /opt/p4merge/
+## create symlink "sudo ln -s /opt/p4merge/bin/p4merge /usr/local/bin/p4merge
+
+# Getting Started/Creating New Repo
+
+git init uboot
+# above command creates "new empty repository with uboot folder.
+# it also creates a folder
+# output of command
+"Intialized empty Git repository in /home/vinai/workspace/projects/uboot/.git/"
+
+# Git states
+## wworking directory
+## Staging Area
+## Repository (.git folder)
+## Remote repository
+

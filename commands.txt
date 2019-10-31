@@ -1,0 +1,30 @@
+#commands for nxp bitbake project
+DISTRO=fsl-imx-xwayland MACHINE=imx8mmevk source fsl-setup-release.sh -b build-xwayland 
+bitbake fsl-image-validation-imx
+
+#commands for bbb
+# sd card partitions 2
+## Partition 1: Boot: Fat
+## Partition 2: Rootfs: Ext3/Ext4
+# for partitioning use gparted gui software, install it from ubuntu software
+# launch gpart, delete any existing partitions and create new partition
+
+# Creating Partitons
+## boot partition: type fat16: size 512M: and leave rest options as default: press add 
+## rootfs partition: type ext3: size whatever left over:press add
+## then select "Apply All Operations", takes some time to apply all changes
+## Once done, select boot partition, right click, select "manage flags" -> select "boot"
+
+# copying images to sd card
+## MLO/SPL: download/build MLO binary and copy it to boot partition as name "MLO". This name must match else it wont be picked up
+### on BBB, SPL/MLO is part of uboot: you see it as U-Boot SPL 
+## UBOOT: download/build uboot binary and copy it to boot partition as name "u-boot.img"
+## ROOTFS: Download/build root and uimage and copy it to rootfs partition.
+## UENV.TXT: and add uEnv.txt to boot partition, which tells the u-boot from where it has to pick the uImage
+
+# Boot from SD card on BBB
+## press and hold the S2 button (Boot button)
+## press the S3 button (Power button)
+## Release S2 button
+
+
