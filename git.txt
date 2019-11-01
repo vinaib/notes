@@ -53,8 +53,28 @@ git init uboot
 "Intialized empty Git repository in /home/vinai/workspace/projects/uboot/.git/"
 
 # Git states
-## wworking directory
+## wworking directory:
 ## Staging Area
 ## Repository (.git folder)
 ## Remote repository
 
+# adding new file/s
+git add <new_file_name>		# adds the new file to staging area
+git add . 			# . is wild character which adds all files under current directory
+
+# to view status
+git status
+
+# commit files
+git commit -m "first file"	# commit message
+git commit			# with out option -m, it opens configured editor to type in message
+				# type in commit message in edior, save and exit.
+
+# list all the commits of the repo
+git log
+
+# show last commit and diff
+git show
+
+# list tracked files in repo
+git ls-files
