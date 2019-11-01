@@ -58,23 +58,79 @@ git init uboot
 ## Repository (.git folder)
 ## Remote repository
 
-# adding new file/s
+# adding new file/s or modified files to staging area
 git add <new_file_name>		# adds the new file to staging area
 git add . 			# . is wild character which adds all files under current directory
+git add <modified_file>		# this command adds modified exisisting file to staging area, this can be 
+				# undone by git reset HEAD
 
 # to view status
 git status
 
 # commit files
-git commit -m "first file"	# commit message
+git commit -m "first file"	# commit message.
 git commit			# with out option -m, it opens configured editor to type in message
 				# type in commit message in edior, save and exit.
+git commit -am "updates"	# add and commit modified files with commit message.
+git commit -am "new file"	# this command fails to add untracked files, -a option works only on
+				# tracked files.
 
 # list all the commits of the repo
-git log
+git log 			# with all info
+## oneline history, by using options for log
+git log --oneline --graph --decorate --all
 
 # show last commit and diff
 git show
 
 # list tracked files in repo
 git ls-files
+
+# undo changes from staging area
+git reset HEAD <file_name>	# after this command specified file is unstaged.
+				# Once file is unstaged, your modifications is not
+				# deleted. It will show as modified.
+
+# if two or more files are modified and added to staging area then we cannot 
+# unstage particular one file by git reset HEAD <file_name_1>. This command 
+# just returns by not doing any action. git reset HEAD will unstage all the 
+# files which are staged in single command. If you want to unstage single file
+# then good practice is always stage single file and you have a chance to 
+# unstage that file only even though there are multiple files in staging area.
+
+# Delete your modifications on ustaged file
+git checkout -- <file_name>	# checkouts the head version, which means deletes
+				# the current modification which are in file.
+
+
+# Alias
+## to create alias at user level 
+
+# hist is alias for "log --oneline --graph --decorate --all"
+# to use this alias, use command git hist
+# to view all aliases: git config --global --list
+git config --global alias.hist "log --oneline --graph --decorate --all"	
+
+git hist -- <file_name> # history on particular file
+git hist 		# history on entire repo
+git hist --author=vinai # history on commits, by particular author
+
+# Renaming tracked files
+git mv ds.txt data_struct.txt		# rename given file, but changes are staged
+					# not committed
+git status				# shows renamed changes to be committed
+git commit -m "renaming ds file" 	# renaming changes will be committed
+
+# Remove tracked file
+git rm data_struct.txt				# remove file, but this remove is staged not committed
+git status					# can be viewed staged files
+git commit -m "deleting data_struct.txt"	# committing deleting files
+
+# Managing(rename, addition, deletion) files with bash commands and later update
+mv commands.txt command.txt		# renaming commands.txt with bash command
+touch demo.txt				# create new file demo.txt
+git status				# displays commands.txt as deleted and demo as untracked file
+git add -u				# stages the modifications done by updation, this option will not do 
+					# new file addition. This deletes the commands.txt and moves to staged
+					# This will not add command.txt, command.txt still be shown under untracked
+git add -A				# will stage new files and modifications
