@@ -229,9 +229,13 @@ git show V1.0				# shows the git diff on this tag, as tag point to HEAD show lat
 ## How to create tags on particular commitID?
 
 # Stashing
-git stash
-git stash list
-git stash pop
+git stash				# from master: change in git.txt, and stash it
+git stash list				# to list stash
+git commit -am "modify other file"	# modify other file uimage and commit to master
+git stash pop				# stashed changes are merged to master and these can be committed
+
+## Need to check, if we do changes in git.txt and stash it, now on master again do changes in git.txt 
+## and commit it. Now if we pop stash what will happen?
 
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
