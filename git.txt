@@ -241,4 +241,5 @@ git stash pop				# stashed changes are merged to master and these can be committ
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
 
 # Demo for very bad update: this change is going to cause merge conflict
+# Demo for stash: good bad ugly
 # Demo for stash: better best
