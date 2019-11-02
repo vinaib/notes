@@ -238,6 +238,23 @@ git stash pop				# stashed changes are merged to master and these can be committ
 ## and commit it. Now if we pop stash what will happen?
 ### Did exercise and found that merge conflict will happen, we have to do manual merge using mergetool and resolve conflict and commit it.
 
+# Time Travel with Reset and Reflog
+## modify file uimage.txt and add it to staging
+## after adding to staging, again modify uimage.txt
+## git status show same file at staging and as well as modified
+## At this stage you may want to go several commits behind and correct it, which is also regular scenario. Git has a solution for this.
+git hist 				# list all the commit id
+git reset <commit id> --soft		# reset HEAD to particular commit id, after executing of this command HEAD will be point to given commit id.
+### 3 distinct ways of resetting
+#### soft		:soft reset is least destructive of all, what it does is change where HEAD is pointing
+#### default, mixed
+#### hard
+git reset <commit id> --mixed		# if nothing is specified, mixed is default
+git reset <commit id> --hard		# most destructive
+git hist				# git log: shows current state of repo
+git reflog				# git reflog: shows what are all actions done on repo, nice to watch. Shows in format HEAD@
+
+
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
 
