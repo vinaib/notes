@@ -162,7 +162,13 @@ git difftool
 git diff help
 
 # Branching
+git branch					# shows current branch with highlighted green, and with asterik which denotes that it is a
+						# current branch. As of now there are no other branches, it will list master as the only branch.
+## Creating branch and switch to
+git checkout -b updates				# option -b: creates new branch with name "updates" and switch to it.
 
+git branch					# at this point two branches are there, this command will list both master and updates. But now
+						# updates is highlighted in green with asterik: denotes that this is active branch
 # Merge
 ## Fast forward merge
 ## Automatic merge
