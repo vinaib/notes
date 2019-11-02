@@ -209,7 +209,24 @@ git hist
 git mergetool 					# use configured mergetool to resolve merge conflict and commit the changes
 git commit -m "resolve conflicts"
 
+# creating tags, Indicating special events/milestones
+## Tags are just labels can be put at any arbitraty commit point. By default if you do not specify commit id, it will be current commit or HEAD.
+## if there are any changes in repo which are not committed and no commit id is specified then tag will point to HEAD and local modifications will
+## not be part of tag as they are not committed.
+## There are two types of tags
+### light weight tags
+git tag status				# creates light weight tag status
+git tag --list				# list all the tags, List the tags: there is no associated information with tags
+git hist				# will show tags too
+git tag -d status			# delete tag status
 
+### Annotated tags, Tags will have extra information associated with tag.
+git tag -a V1.0 -m "Release 1.0"	# creates annonated tag
+git tag --list				# ot git tag -l, to list tags
+git hist				# no difference in this output with light weight tag
+git show V1.0				# shows the git diff on this tag, as tag point to HEAD show latest commit on HEAD. This cannot be done on light weight tag	
+
+## How to create tags on particular commitID?
 
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
