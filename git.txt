@@ -200,6 +200,17 @@ git branch -d updates				# once branch changes are merged to current branch, old
 git branch					
 git hist
 
+# Demo conflict merge
+## create branch "very-bad", change file and commit
+## switch to master "change same file at same line and commit"
+## merge "very-bad" branch to master, then automatic merge will fail to merge
+git status					# when conflicts see git hist, for time line, it is nice to watch what happened
+git hist
+git mergetool 					# use configured mergetool to resolve merge conflict and commit the changes
+git commit -m "resolve conflicts"
+
+
+
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
 
