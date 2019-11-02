@@ -236,6 +236,7 @@ git stash pop				# stashed changes are merged to master and these can be committ
 
 ## Need to check, if we do changes in git.txt and stash it, now on master again do changes in git.txt 
 ## and commit it. Now if we pop stash what will happen?
+### Did exercise and found that merge conflict will happen, we have to do manual merge using mergetool and resolve conflict and commit it.
 
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
