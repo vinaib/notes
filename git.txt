@@ -228,6 +228,11 @@ git show V1.0				# shows the git diff on this tag, as tag point to HEAD show lat
 
 ## How to create tags on particular commitID?
 
+# Stashing
+git stash
+git stash list
+git stash pop
+
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
 
