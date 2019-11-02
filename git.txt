@@ -133,4 +133,41 @@ git status				# displays commands.txt as deleted and demo as untracked file
 git add -u				# stages the modifications done by updation, this option will not do 
 					# new file addition. This deletes the commands.txt and moves to staged
 					# This will not add command.txt, command.txt still be shown under untracked
-git add -A				# will stage new files and modifications
+git add -A				# will stage new files, modifications like update, rename
+
+rm demo.txt
+git add -u demo.txt			# specifying specific filename will modifies only that file, otherwise it
+					# will take all modifications.
+
+
+# Excluding unwanted files
+# make entry in .gitignore file
+.gitignore
+
+# syntax in .gitignore, one rule per line
+filename.log
+*.log
+*.swp
+
+# commit this .gitignore file
+
+# Comparing Differences
+git hist					# alias to show all commits
+git diff <commit id 1> <commit id 2> 		# eg: "git diff 1ff083e HEAD". HEAD is special pointer
+git difftool <commit id 1> <commit id 2>	# differences are launched in configured difftool(p4merge), This command will cycle 
+						# through all differences. Launches differences in separate window for each file.
+						# It launches successive file differences after closing one.
+git diff					# shows diff with current changes to last changes i.e. HEAD
+git difftool
+git diff help
+
+# Branching
+
+# Merge
+## Fast forward merge
+## Automatic merge
+## Manual merge
+
+# Special Pointers
+## HEAD: Points to last commit of current branch, can be made to point to other commits.
+
