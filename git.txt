@@ -203,3 +203,4 @@ git hist
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
 
+# Demo for very bad update: commit from master
