@@ -164,8 +164,10 @@ git diff help
 # Branching
 git branch					# shows current branch with highlighted green, and with asterik which denotes that it is a
 						# current branch. As of now there are no other branches, it will list master as the only branch.
+						# branches are just timelines, once branch changes are merged to master you do not need those branches
 ## Creating branch and switch to
-git checkout -b updates				# option -b: creates new branch with name "updates" and switch to it.
+git checkout -b updates				# option -b: creates new branch with name "updates" and switch to it. Current changes will be
+						# carried forward to branch
 
 git branch					# at this point two branches are there, this command will list both master and updates. But now
 						# updates is highlighted in green with asterik: denotes that this is active branch
@@ -176,13 +178,27 @@ git diff master updates				# diff between branches
 
 # switch to other branch
 git checkout <branch name>			# switch to given branch name
-git checkout master				# switch to master branch, 
+git checkout master				# switch to master branch. Please note that before switching to other branch all current changes 
+						# must be committed else git will not allow to switch to branch
 git hist					# HEAD is now on master, can be viewed by git hist
 
-# Merge
+# Merge from branch
+git merge <branch_name_2>			# If now you are on <branch_name_1> you want merge changes from <branch_name_2>, this is command
+git merge updates				# in this example, if current branch is master, then all changes from updates are merged and committed
+						# to master. If changes are simple merge will happen smoothly i.e. "Fast Forward" merge.
+
 ## Fast forward merge
 ## Automatic merge
 ## Manual merge
+
+# Delete branch
+git branch					# list all branches
+git branch -d updates				# once branch changes are merged to current branch, old branch can be deleted
+						# on deleting branches, history associated with branch is not deleted, only label updates and branch will be
+						# deleted. can be checkd with git hist and git branch.
+
+git branch					
+git hist
 
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
