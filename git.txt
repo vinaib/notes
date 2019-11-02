@@ -169,6 +169,16 @@ git checkout -b updates				# option -b: creates new branch with name "updates" a
 
 git branch					# at this point two branches are there, this command will list both master and updates. But now
 						# updates is highlighted in green with asterik: denotes that this is active branch
+						# now commits will be reflected to branch. HEAD is on Branch updates
+
+git hist					# checkout all history, shows even branching information.
+git diff master updates				# diff between branches
+
+# switch to other branch
+git checkout <branch name>			# switch to given branch name
+git checkout master				# switch to master branch, 
+git hist					# HEAD is now on master, can be viewed by git hist
+
 # Merge
 ## Fast forward merge
 ## Automatic merge
