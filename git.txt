@@ -254,6 +254,66 @@ git reset <commit id> --hard		# most destructive
 git hist				# git log: shows current state of repo
 git reflog				# git reflog: shows what are all actions done on repo, nice to watch. Shows in format HEAD@
 
+# Creating git repository @github.com
+I have created empty git repository notes at github and after creating it landed into page displaying following link to newly created repo
+with few commands on how to push an existing repo to this.
+https://github.com/vinaib/notes.git
+
+## create a new repository on the command line
+echo "# notes" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/vinaib/notes.git
+git push -u origin master
+
+## …or push an existing repository from the command line
+git remote -v							# displays remote repo connections set
+
+git remote add origin https://github.com/vinaib/notes.git	# git remote manages all the remote connections from the local repo to another
+								# remote repo.
+								# git remote add: add subcommnad takes two parameters
+								# name of the remote reference we want to create, in this case i want to create it
+								# as origin and the second parameter is full URL to the remote repo, which is the URL to
+								# my github repo. In place of origin we can use any name. By convention first and primary 
+								# repo is named origin.
+## after executing above command if we execute it will show
+## two url's. Technically git will allow two URL's One for fetch 
+## and one for push.
+git remote -v						
+origin	https://github.com/vinaib/notes.git (fetch)
+origin	https://github.com/vinaib/notes.git (push)
+
+# Pushing repo to github
+git push -u origin master --tags				# option -u: going to setup tracking branch relationship between master branch of local repo
+								# and the master branch on the remote repo.
+								# after the -u parameter, we have name of remote repo that we are going to use inorder to push 
+								# up the changes .
+								# after the remote repo, we need to provide name of the branch we have to push up and in this case the 
+								# branch we are going to use is master.
+								# option --tags flag, is to send all tags we have currently in our git repo up to the git hub
+							
+								# after pressing enter you will be prompted for github credentials after that your local branch will
+								# be pushed to github.
+# output of the above command:
+
+vinai@vinai2:~/workspace/projects/notes$ git push -u origin master --tags
+Username for 'https://github.com': vinaib
+Password for 'https://vinaib@github.com': 
+Counting objects: 78, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (75/75), done.
+Writing objects: 100% (78/78), 11.81 KiB | 0 bytes/s, done.
+Total 78 (delta 39), reused 0 (delta 0)
+remote: Resolving deltas: 100% (39/39), done.
+To https://github.com/vinaib/notes.git
+ * [new branch]      master -> master
+ * [new tag]         V1.0 -> V1.0
+Branch master set up to track remote branch master from origin.
+				
+								# when you do push in future, -u is no longer required.
+
+## Associate locally created repository with newly created repository at github.com
 
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.
