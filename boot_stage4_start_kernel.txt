@@ -1,0 +1,10 @@
+# start_kernel is entry point for arch independent kernel initialization
+# this function is defined in init/main.c
+# it initializes everthing from Printing banner to mouting rootfs and launchin init first process.
+# after all subsystems initialization it calls rest_init at last.
+# the rest_init creates two kernel threads:
+## kernel_init : pid 1: calls user init thread: used to spawn first linux application i.e. init.
+### tries to launch: /sbin/init or /etc/init or /bin/init or /bin/sh
+## kthreadd: pid 2: used to spawn other kernel thread
+# after launching these two threads, it starts "idle" thread and calls schedule() to kick scheduler.
+## idle thread is infinite loop while(1)

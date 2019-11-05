@@ -1,0 +1,8 @@
+# All linux bootstrap loader related files are at
+# open arch/arm/boot/compressed/head.S
+# search or "start:" 					; which is entry point to linux
+# save r1, r2 to r7, r8
+# then call decompress_kernel which is defined in misc.c ; Popular string "Uncompressing kernel ..." comes from this file
+# after decompression, control will be passed to head.S of linux kernel from head.S of linux bootstrap loader
+# this file is arch dependent code
+

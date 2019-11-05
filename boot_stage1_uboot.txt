@@ -1,0 +1,12 @@
+# jump to linux kernel
+# see file: arch/arm/lib/bootm.c
+# function: boot_jump_linux()
+# explore this file, and struct bootm_headers_t
+if DT is defined, then 
+r2 = images->ft_addr ;ram address at which device tree binary is present (dtb: device tree binary or ftd: flattend device tree)
+else
+r2=<check code>
+
+kernel_entry(0, machid, r2);	jump to linux
+# machine id of the board which is detected by the u-bot. Passed to linux via r1
+# ram address of dtb in r2
