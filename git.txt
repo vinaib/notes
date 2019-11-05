@@ -10,8 +10,8 @@
 ## User's Email
 
 # git on Windows
-git config --global user.name "vinai"
-git config --global user.email "vinaibangala2001@gmail.com"
+git config --global user.name "xxxxx"
+git config --global user.email "xxxxx@xxx.com"
 git config --global core.editor "notepad++ -multiInst -nosession"
 
 # p4merge as Diff tool

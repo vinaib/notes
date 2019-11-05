@@ -25,3 +25,24 @@ typedef struct image_header {
 } image_header_t;
 
 #Nov 2 2019
+# load u-boot from storage dev to ram
+# mmc0 -> uSD
+# mmc1 -> eMMC
+# To load a file from FAT based file system in to memory use: fatload
+# To load a file from any file system use: load
+# eg: fatload usb 0:1 0x82000000 uImage
+# fatload mmc 0:1 0x88000000 initramfs
+# load mmmc 0:1 0x88000000 uImage
+
+# cmd to load image
+# first arg: interface (mmc)
+# second arg: 0 is dev, second number is partition (after :)
+# Third arg: load addr, which is ram address
+# fourth arg: binary file name
+# mmc list 	;list all mmc devices
+# mmc dev 1	;select dev 1
+		;0 is omap/SD external SD card
+		;1 is omap/SD internal eMMC card
+load mmc 0:2 0x82000000 /boot/uImage
+md 0x82000000 4				; memory dump, to view uIMage header
+imi 0x88000000				; command to print image header information

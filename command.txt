@@ -27,4 +27,14 @@ bitbake fsl-image-validation-imx
 ## press the S3 button (Power button)
 ## Release S2 button
 
+# xz/unxz commands
+unxz <filename.xz>	;to extract compressed file
+or
+xz --decompress <filename.xz>
+or
+tar -xf file.tar.xz
+
+tar -cJf file.tar.xz folder
+xz filename
+
 
