@@ -34,6 +34,7 @@ typedef struct image_header {
 # fatload mmc 0:1 0x88000000 initramfs
 # load mmmc 0:1 0x88000000 uImage
 
+
 # cmd to load image
 # first arg: interface (mmc)
 # second arg: 0 is dev, second number is partition (after :)
@@ -43,6 +44,141 @@ typedef struct image_header {
 # mmc dev 1	;select dev 1
 		;0 is omap/SD external SD card
 		;1 is omap/SD internal eMMC card
-load mmc 0:2 0x82000000 /boot/uImage
+load mmc 0:2 0x82000000 /boot/uImage	; from SD card
+
+# load the kernel image from emmc to DDR
+load mmc 1:2 0x82000000 /boot/uImage	; from eMMC
+
+# load the dtb image from emmc to DDR
+load mmc 1:2 0x88000000 /boot/am335x-boneblack.dtb	;load dtb at ram 0x88000000
+
 md 0x82000000 4				; memory dump, to view uIMage header
 imi 0x88000000				; command to print image header information
+bootm 0x82000000
+
+setenv bootargs console=ttyo0,115200
+setenv bootargs console=ttyo0,115200 root=/dev/mmcblk0p2 rw
+
+# boot linux with dtb from memory
+bootm 0x82000000 - 0x88000000		;mention both linux image location and dtb image location
+
+# to transfer uEnv.txt from host to target, use any serial protocol
+# loadx : send/recv file using xmodem pcl
+# loady : send/recv file using ymodem pcl
+# loadz : send/recv file using zmodem pcl
+# loadx command was not supported in older uboot builds, try in latest versions like 2017 or more
+# in Older versions try loady. On executing loady you see following:
+# ## Ready for binary (ymodem) download to 0x80200000 at 115200 bps...
+loady
+
+# on host: minicom: ctrl + a, s
+# it will list all serial pcl and option to select file to transfer
+# press space bar twice to open folder
+# press space bar once to select file
+
+# once serial transfer is done, we have to import.
+# env import -t <memory addr> <size in bytes>
+env import -t 0x80200000 29
+
+
+setenv umsmedia 0
+gpio set 53
+i2c mw 0x24 1 0x3e
+
+setenv mmcdev 1
+setenv bootpart 1:1
+gpio clear 56
+gpio clear 55
+gpio clear 54
+run mmcboot
+run failumsboot
+
+setenv fdtfile am335x-boneblack.dtb
+
+
+mmcboot=mmc dev ${mmcdev}; 
+if mmc rescan; then 
+	gpio set 54;
+	setenv bootpart ${mmcdev}:1; 
+
+	if test -e mmc ${bootpart} /etc/fstab; then 
+		setenv mmcpart 1;
+	fi; 
+	echo Checking for: /uEnv.txt ...;
+	if test -e mmc ${bootpart} /uEnv.txt; then 
+		if run loadbootenv; then 
+			gpio set 55;
+			echo Loaded environment from ${bootenv};
+			run importbootenv;
+		fi;
+
+		if test -n ${cape}; then 
+			if test -e mmc ${bootpart} ${fdtdir}/${fdtbase}-${cape}.dtb; then 
+				setenv fdtfile ${fdtbase}-${cape}.dtb; 
+			fi; 
+			echo using: $fdtfile...; 
+		fi; 
+		echo Checking if uenvcmd is set ...;
+		if test -n ${uenvcmd}; then 
+			gpio set 56; 
+			echo Running uenvcmd ...;
+			run uenvcmd;
+		fi;
+		echo Checking if client_ip is set ...;
+		if test -n ${client_ip}; then 
+			if test -n ${dtb}; then 
+				setenv fdtfile ${dtb};
+				echo using ${fdtfile} ...;
+			fi;
+			gpio set 56; 
+			if test -n ${uname_r}; then 
+				echo Running nfsboot_uname_r ...;
+				run nfsboot_uname_r;
+			fi;
+			echo Running nfsboot ...;
+			run nfsboot;
+		fi;
+	fi; 
+	echo Checking for: /${script} ...;
+	if test -e mmc ${bootpart} /${script}; then 
+		gpio set 55;
+		setenv scriptfile ${script};
+		run loadbootscript;
+		echo Loaded script from ${scriptfile};
+		gpio set 56; 
+		run bootscript;
+	fi; 
+	echo Checking for: /boot/${script} ...;
+	if test -e mmc ${bootpart} /boot/${script}; then 
+		gpio set 55;
+		setenv scriptfile /boot/${script};
+		run loadbootscript;
+		echo Loaded script from ${scriptfile};
+		gpio set 56; 
+		run bootscript;
+	fi; 
+	echo Checking for: /boot/uEnv.txt ...;
+	for i in 1 2 3 4 5 6 7 ; do 
+		setenv mmcpart ${i};
+		setenv bootpart ${mmcdev}:${mmcpart};
+		if test -e mmc ${bootpart} /boot/uEnv.txt; then 
+			gpio set 55;
+			load mmc ${bootpart} ${loadaddr} /boot/uEnv.txt;
+			env import -t ${loadaddr} ${filesize};
+			echo Loaded environment from /boot/uEnv.txt;
+			if test -n ${dtb}; then 
+				setenv fdtfile ${dtb};
+				echo Using: dtb=${fdtfile} ...;
+			fi;
+			echo Checking if uname_r is set in /boot/uEnv.txt...;
+			if test -n ${uname_r}; then 
+				gpio set 56; 
+				echo Running uname_boot ...;
+				setenv mmcroot /dev/mmcblk${mmcdev}p${mmcpart} ro;
+				run uname_boot;
+			fi;
+		fi;
+	done;
+fi;
+
+
