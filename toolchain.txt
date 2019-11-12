@@ -1,0 +1,21 @@
+Linaaro tool chain:
+-----------------
+# Path: 
+https://releases.linaro.org/components/toolchain/binaries/latest-5/
+https://www.linaro.org/downloads
+
+# From above link choose correct target: for beagle bone black, I choose:
+
+## arm-linux-gnueabihf: 32 bit armv7 cortex A,hard float, little endian
+
+## and other availabe are:
+   armv81-linux-gnueabif: 32bit armv8 cortex A, hard float, little endian
+
+## aarch64-linux-gnu: 64 bit armv8, cortex A, little endian
+
+# Download toolchain binaries for host PC arch x86_64 or 32 bit
+# extract the downloaded archive
+
+# configure env PATH
+export PATH=$PATH:/home/vinai/workspace/bbb/toolchain/gcc-linaro-7.4.1-2019.02-x86_64_arm-linux-gnueabihf/bin
+

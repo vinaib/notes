@@ -1,0 +1,25 @@
+Creating Partitons
+--------------------
+# use gpart software to partition SD card.
+# sd card partitions 2
+## Partition 1: Boot: Fat16: 
+## Partition 2: Rootfs: Ext3: 
+
+# for partitioning use gpart gui software, install it from ubuntu software
+# launch gpart, delete any existing partitions and create new partition
+## boot partition: type fat16: size 512M: and leave rest options as default: press add 
+## rootfs partition: type ext3: size whatever left over:press add
+## then select "Apply All Operations", takes some time to apply all changes
+## Once done, select boot partition, right click, select "manage flags" -> select "boot"
+
+# copying images to sd card
+## MLO/SPL: Download/build MLO binary and copy it to boot partition as name "MLO". This name must match else it wont be picked up
+### on BBB, SPL/MLO is part of uboot: you see it as U-Boot SPL 
+## UBOOT: download/build uboot binary and copy it to boot partition as name "u-boot.img"
+## ROOTFS: Download/build root and uimage and copy it to rootfs partition.
+## UENV.TXT: and add uEnv.txt to boot partition, which tells the u-boot from where it has to pick the uImage
+
+# Boot from SD card on BBB
+## press and hold the S2 button (Boot button)
+## press the S3 button (Power button)
+## Release S2 button

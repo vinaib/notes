@@ -311,9 +311,25 @@ To https://github.com/vinaib/notes.git
  * [new tag]         V1.0 -> V1.0
 Branch master set up to track remote branch master from origin.
 				
-								# when you do push in future, -u is no longer required.
-
+# when you do push in future, -u is no longer required.
 ## Associate locally created repository with newly created repository at github.com
+
+# clone
+## clone the repo, if no-folder is specified then it is checked out at folder my-project
+git clone ssh://john@example.com/path/to/my-project.git
+cd my-project
+
+## cloning to a specific folder
+git clone <repo> <my_folder>
+
+## cloning a specific tag
+git clone --branch <tag> <repo>
+
+## cloning a specific branch
+git clone --branch <branch_name> git://remote_repo.git
+
+## shallow clone
+git clone -depth=1 <repo>
 
 # Special Pointers
 ## HEAD: Points to last commit of current branch, can be made to point to other commits.

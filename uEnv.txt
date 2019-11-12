@@ -1,0 +1,15 @@
+# syntax for uEnv.txt 
+# There should be a newline character at end of file
+# we should not mention uboot commands directly.
+# suppose if you want to achieve this, 
+# setenv serverip 192.168.1.15
+# the way is
+# mypcip=setenv serverip 192.168.1.15
+# once imported to target, run mypcip and check by print mypcip
+# ipaddr=192.168.1.10
+
+mypcip=setenv serverip 192.168.1.15
+ipaddr=192.168.1.10
+bootargs=console=ttyO0,115200 root=/dev/mmcblk0p2 rw
+bootcmd=echo "***** Booing from meory *****";load mmc 1:2 0x82000000 /boot/uImage;load mmc 1:2 0x88000000 /boot/am335-boneblack.dtb; bootm 0x82000000 - 0x88000000;
+

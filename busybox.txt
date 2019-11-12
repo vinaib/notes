@@ -1,0 +1,21 @@
+Busybox link: https://busybox.net/about.html
+--------------------------------------------
+git clone git://busybox.net/busybox.git
+
+# checkout stable branch
+git branch -a					# list all branches
+git checkout remotes/origin/1_NN_stable
+
+# apply default config
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- defcofig
+
+# change config by menuconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+# build busybox in static way, we can also compile as dynamic
+# you can change to static compilation under menuconfig
+# with static compilation, libc and its dependent libraries will be part of busybox binary
+
+# build busybox 
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_PREFIX=/home/vinai/workspace/bbb/out istall
+

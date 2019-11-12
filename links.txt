@@ -1,0 +1,6 @@
+# uboot project: 
+## ftp link to download: ftp://ftp.denx.de/pub/u-boot/
+## git project: git clone https://github.com/u-boot/u-boot.git 
+
+# busybox: https://busybox.net/about.html
+# bootlin: https://bootlin.com/blog/2020-internships/

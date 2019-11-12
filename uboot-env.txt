@@ -1,0 +1,85 @@
+U-Boot# 
+arch=arm
+autoconf=off
+baudrate=115200
+board=am335x
+board_name=A335BNLT
+board_rev=00C0
+boot_fdt=try
+bootcmd=setenv umsmedia 0; gpio set 53; i2c mw 0x24 1 0x3e; run findfdt; setenv mmcdev 0; setenv bootpart 0:1; run mmcboot;gpio clear 56; gpio clear 55; gpio clear 54; setenv mmcdev 1; setenv bootpart 1:1; ;
+bootcount=5
+bootdelay=1
+bootenv=uEnv.txt
+bootfile=zImage
+bootm_size=0x10000000
+bootpart=0:2
+bootscript=echo Running bootscript from mmc${bootpart} ...; source ${loadaddr}
+console=ttyO0,115200n8
+cpu=armv7
+device=eth0
+dfu_alt_info_emmc=rawemmc raw 0 3751936
+dfu_alt_info_mmc=boot part 0 1;rootfs part 0 2;MLO fat 0 1;MLO.raw raw 0x100 0x100;u-boot.img.raw raw 0x300 0x400;spl-os-args.raw raw 0x80 0x80;spl-os-image.raw raw 0x900 0x2000;spl-os-args fat 0 1;spl-os-i1
+dfu_alt_info_ram=kernel ram 0x80200000 0xD80000;fdt ram 0x80F80000 0x80000;ramdisk ram 0x81000000 0x4000000
+eth1addr=68:c9:0b:da:1e:ab
+ethact=cpsw
+ethaddr=68:c9:0b:da:1e:a9
+failumsboot=echo; echo FAILSAFE: U-Boot UMS (USB Mass Storage) enabled, media now available over the usb slave port ...; ums 0 mmc ${umsmedia};
+fdt_addr_r=0x88000000
+fdtaddr=0x88000000
+fdtdir=/dtbs
+fdtfile=undefined
+findfdt=if test $board_name = A335BONE; then setenv fdtfile am335x-bone.dtb; setenv fdtbase am335x-bone; fi; if test $board_name = A335BNLT; then setenv fdtfile am335x-boneblack.dtb; setenv fdtbase am335x-b 
+gw_ip=192.168.1.1
+importbootenv=echo Importing environment from mmc ...; env import -t -r $loadaddr $filesize
+kernel_addr_r=0x82000000
+loadaddr=0x82000000
+loadbootenv=load mmc ${bootpart} ${loadaddr} ${bootenv}
+loadbootscript=load mmc ${bootpart} ${loadaddr} ${scriptfile};
+loadfdt=echo loading ${fdtdir}/${fdtfile} ...; load mmc ${bootpart} ${fdtaddr} ${fdtdir}/${fdtfile}
+loadimage=load mmc ${bootpart} ${loadaddr} ${bootdir}/${bootfile}
+loadramdisk=load mmc ${mmcdev} ${rdaddr} ramdisk.gz
+loadrd=load mmc ${bootpart} ${rdaddr} ${bootdir}/${rdfile}; setenv rdsize ${filesize}
+mmcargs=setenv bootargs console=${console} ${optargs} ${cape_disable} ${cape_enable} root=${mmcroot} rootfstype=${mmcrootfstype} ${cmdline}
+mmcboot=mmc dev ${mmcdev}; if mmc rescan; then gpio set 54;setenv bootpart ${mmcdev}:1; if test -e mmc ${bootpart} /etc/fstab; then setenv mmcpart 1;fi; echo Checking for: /uEnv.txt ...;if test -e mmc ${boo;
+mmcdev=0
+mmcloados=run mmcargs; if test ${boot_fdt} = yes || test ${boot_fdt} = try; then if run loadfdt; then bootz ${loadaddr} - ${fdtaddr}; else if test ${boot_fdt} = try; then bootz; else echo WARN: Cannot load ;
+mmcpart=1
+mmcroot=/dev/mmcblk0p2 ro
+mmcrootfstype=ext4 rootwait fixrtc
+netargs=setenv bootargs console=${console} ${optargs} root=/dev/nfs nfsroot=${serverip}:${rootpath},${nfsopts} rw ip=dhcp
+netboot=echo Booting from network ...; setenv autoload no; dhcp; tftp ${loadaddr} ${bootfile}; tftp ${fdtaddr} ${fdtfile}; run netargs; bootz ${loadaddr} - ${fdtaddr}
+netmask=255.255.255.0
+nfs_options=,vers=3
+nfsargs=setenv bootargs console=${console} ${optargs} ${cape_disable} ${cape_enable} root=/dev/nfs rw rootfstype=${nfsrootfstype} nfsroot=${nfsroot} ip=${ip} ${cmdline}
+nfsboot=echo Booting from ${server_ip} ...; setenv nfsroot ${server_ip}:${root_dir}${nfs_options}; setenv ip ${client_ip}:${server_ip}:${gw_ip}:${netmask}:${hostname}:${device}:${autoconf}; setenv autoload }
+nfsboot_uname_r=echo Booting from ${server_ip} ...; setenv nfsroot ${server_ip}:${root_dir}${nfs_options}; setenv ip ${client_ip}:${server_ip}:${gw_ip}:${netmask}:${hostname}:${device}:${autoconf}; setenv a}
+nfsopts=nolock
+nfsrootfstype=ext4 rootwait fixrtc
+partitions=uuid_disk=${uuid_gpt_disk};name=rootfs,start=2MiB,size=-,uuid=${uuid_gpt_rootfs}
+ramargs=setenv bootargs console=${console} ${optargs} root=${ramroot} rootfstype=${ramrootfstype}
+ramboot=echo Booting from ramdisk ...; run ramargs; bootz ${loadaddr} ${rdaddr} ${fdtaddr}
+ramdisk_addr_r=0x88080000
+ramroot=/dev/ram0 rw
+ramrootfstype=ext2
+rdaddr=0x88080000
+root_dir=/home/userid/targetNFS
+rootpath=/export/rootfs
+script=boot.scr
+scriptfile=${script}
+server_ip=192.168.1.100
+soc=am33xx
+spiargs=setenv bootargs console=${console} ${optargs} root=${spiroot} rootfstype=${spirootfstype}
+spiboot=echo Booting from spi ...; run spiargs; sf probe ${spibusno}:0; sf read ${loadaddr} ${spisrcaddr} ${spiimgsize}; bootz ${loadaddr}
+spibusno=0
+spiimgsize=0x362000
+spiroot=/dev/mtdblock4 rw
+spirootfstype=jffs2
+spisrcaddr=0xe0000
+static_ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}::off
+stderr=serial_omap
+stdin=serial_omap
+stdout=serial_omap
+uname_boot=setenv bootdir /boot; setenv bootfile vmlinuz-${uname_r}; if test -e mmc ${bootpart} ${bootdir}/${bootfile}; then echo loading ${bootdir}/${bootfile} ...; run loadimage;setenv fdtdir /boot/dtbs/$;
+vendor=ti
+ver=U-Boot 2015.01-00001-gb2412df (Jan 29 2015 - 15:01:06)
+

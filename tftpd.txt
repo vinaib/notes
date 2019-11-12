@@ -1,0 +1,39 @@
+Install and configure tftpd on ubuntu
+-------------------------------------
+1) sudo apt-get install xinetd tftp tftpd
+2) sudo vi /etc/xinetd.d/tftp
+servce tftp 
+{
+protocol = udp
+port = 69
+socket_type = dgram
+wait = yes
+user = nobody
+server = /usr/sbin/in.tftpd
+server_args = /var/lib/tftpboot -s
+disable = no
+}
+
+3) create folder /var/lib/tftpboot
+sudo mkdir /var/lib/tftpboot
+sudo chmod -R 777 /var/lib/tftpboot
+sudo chown -R nobody /var/lib/tftpboot
+
+4) sudo /etc/init.d/xinetd restart
+
+5) copy uImage, dtb and initramfs to /var/lib/tftpboot "tftp home directory".
+
+6) setenv serverip 192.168.1.6
+setenv ipaddr 192.168.1.30
+
+7) tftpboot <load address for kernel> <image name>
+tfpboot 0x82000000 uImage
+
+8) tftpboot 0x88000000 am335x-bonelack.dtb
+
+9) tftpboot 0x88080000 initramfs
+
+10) setenv bootargs console=ttyO0,115200 root=/dev/ram0 rw initrd=0x88080000 
+
+11) bootm ${kernel_load_address} ${initramfs_load_address} ${dtb_load_address}
+bootm 0x82000000 0x88080000 0x88000000 

@@ -1,0 +1,58 @@
+compiling linux
+---------------
+
+
+kernel source
+-------------
+# architecture specific: arch/
+## Processor specific
+## SoC specific
+## Board specific
+
+# arm "Processor specific" realted code in linux kernel 
+## arch/arm/kernel
+## arch/arm/mm
+## arch/arm/boot/compressed
+## arch/arm/boot/lib
+
+# SoC specific
+## arch/arm/mach-xxx
+### for TI: SoC based on OMAP 1: "mach-omap1"
+### for TI: SoC based on OMAP2/3/4, AM3XX SoC: "mach-ompa2"
+### fot TI: SoC based on Davinci: "mach-davinci"
+## mach-XXX folder contains:
+### SoC related shared code between different boards
+#### peripheral initialization whihc are same across boards
+#### helper functions
+### Board file: After introduction of dts, these board files is no longer valid
+#### usually starts with board-xxx.c
+#### Having dts files, all board files are removed and introduced "board-generic" board file which is generic to all the boards which are based on same SoC families.
+#### if you see odler kernel versions, linux 3.4.113, you can see board files
+
+Building kernel
+----------------
+# dist clean, it also clean tags, cleans every generated file
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- distclean
+
+# generate .config from default config
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabhihf- bb.org_defconfig
+
+# make menuconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+
+# Generate uImage
+## if uImage option is given then along with zImage, Image, uImage is also generated.
+## load address of uImage, which is read by u-boot 
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- uImage dtbs LOADADDR=0x80008000 -j4
+
+# compile modules
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- modules -j4
+
+# install modules on filesystem
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=/home/vinai/workspace/bbb/out/ modules_install
+
+# file /lib/modules/<kernel version>/modules.builtin contains list of all modules which are statistically linked to kernel.
+
+# see modules.order, 
+# modules.dep: lists all modules dependencies
+# modprobe : refers modules.dep to find out the dependencies and load these modules before loading the asked module.

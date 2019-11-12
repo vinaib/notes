@@ -1,0 +1,29 @@
+
+compiling u-boot
+----------------
+
+## do distclean
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- distclean
+
+## Apply board default configuratin for uboot
+## In latest versions of u-boot am335x_boneblack_defconfig is removed. We should use
+## am335x_evm_defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- am335x_evm_defconfig
+
+# above command generates .config
+# if you want to change the .config, run menucofig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabhihf- menuconfig
+
+# to compile uboot
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j4
+
+u-boot source:
+--------------
+1) arch specific  under folder arch/
+2) board specific under folder board/
+3) cpu specific under folder arch/arm/cpu/<various cpu arch>
+	from rom loader, control jumps to second stage bootloader:
+		arch/arm/cpu/armv7/start.S
+4) config: contains various board config file
+	beagle bone black: am335x_boneblack_defconfig
+
