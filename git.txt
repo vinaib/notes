@@ -358,7 +358,15 @@ id_rsa.pub is public key
 # after adding public key, it can be verified by following command from your development machine
 # ssh -T git@github.com
 # On executing above command, it will greet by your name and say successfully authenticated, and also say
-gitgub does not provide shell access
+# gitgub does not provide shell access
 
+# Changing remote url from "https to git" and "git to https".
+# command which displays current setup
+# git remote -v
+origin	https://github.com/vinaib/notes.git (fetch)
+origin	https://github.com/vinaib/notes.git (push)
+
+# command to change to ssh scheme
+# git remote set-url origin git@github.com:vinaib/notes.git
 
 
