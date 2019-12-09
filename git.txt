@@ -369,4 +369,15 @@ origin	https://github.com/vinaib/notes.git (push)
 # command to change to ssh scheme
 # git remote set-url origin git@github.com:vinaib/notes.git
 
+# Creating repo from github.com
+# click on "cat" icon to create new repo. Fill in the name, choose Readme, .gitignore, licenese files
+# click on create
+
+# To get this newly created repo on your local system:, i.e. cloning this repo to your local machine
+# git clone git@github.com:vinaib/arm_asm.git
+# on executing above command, it will create arm_asm folder under current directory and checkout all files under that repo
+# you want to checkout git repo to the different folder name then use below command
+# git clone git@github.com:vinaib/arm_asm.git asm_programming
+
+
 
