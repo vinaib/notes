@@ -1,0 +1,108 @@
+Loading images, uEnv.txt - Manually 
+-----------------------------------
+# set boardip address at uboot prompt
+setenv ipaddr 192.168.1.30
+
+# set serverip address at uboot prompt
+setenv serverip 192.168.1.18
+
+# set minimal bootargs, to print boot logs on console
+# console is set to console=ttyS0,115200
+setenv bootargs console=${console}
+
+# see loadaddr uboot environment variable, this will be set to "0x8200 0000".
+tftpboot ${loadaddr} uImage
+
+# bootm ${loadaddr}
+
+# with device tree, ${fdtaddr} is set to 0x88000000
+tftpboot ${fdtaddr} am335x-boneblack.dtb
+
+# bootm ${loadaddr} - ${fdtaddr} 
+
+# load images from emmc partitions
+load mmc 1:2 0x82000000 /boot/uImage
+load mmc 1:2 0x88000000 /boot/am335x-boneblack.dtb
+
+# Inform linux about rootfs using bootargs
+setenv bootargs console=ttyS0,115200 root=<location of rootfs>
+setenv bootargs console=ttyS0,115200 root=/dev/mmcblk0p2 rw
+## rootfs can be on emmc
+## rootfs can be on nfs
+## rootfs can be on SD
+## rootfs can be on RAM
+
+# load uEnv.txt file through serial
+## run loadx on uboot prompt
+loadx
+
+## using xmodel protocol uEnv.txt can be downloaded to target. On successfull
+download, you will see following logs. Which say it has downloaded 29 bytes at
+location 0x82000000
+## Ready for binary (xmodem) download to 0x82000000 at 115200 bps...                                                                          
+C0(STX)/0(CAN) packets, 3 retries
+## Total Size      = 0x0000001d = 29 Bytes
+
+# once uEnv.txt is downloaded to RAM, it has to ran. Following is the command
+env import -t <memory addr> <size in bytes>
+env import -t 0x82000000 30
+
+# refer uEnv.txt file for contents to be present in this file
+# refer uEnv_nfs.txt for nfs based root file system
+# and also refer following section for configuring nfs server
+
+Loading images:
+---------------
+1) copy MLO and u-boot.img  to SD card BOOT partition
+2) create uEnv.txt in SD card BOOT partition, and 
+## instruct the u-boot to load uImage and DTB using tftp protocol.
+## mount root file system (RFS) using network file system(NFS)
+
+NFS install
+-----------
+# install nfs-kernel-server
+# sudo apt-get install nfs-kernel-server
+
+Configuring the nfs server
+--------------------------
+refer: http://wiki.emacinc.com/wiki/Setting_up_an_NFS_File_Server
+1) nfs server shares are configured in the /etc/exports 
+2) http://linuxkernel51.blogspot.com/2015/08/boot-beaglebone-black-with-nfs.html
+
+/etc/exports
+------------
+#not worked
+#/srv/nfs/bbb 192.16.1.0(rw,sync,no_root_squash,no_subtree_check)
+
+#not worked
+/srv/nfs/bbb 192.168.1.18(ro,sync,no_root_squash,no_subtree_check)
+
+# this worked
+# /srv/nfs/bbb 127.0.0.1(rw)
+
+# this worked
+# edit /etc/exports to add entry for client address, create below entry in exports file
+## /srv/nfs/bbb 127.0.0.1(rw)
+
+After editing exports file, please run below commands
+-----------------------------------------------------
+sudo exportfs -a			# exports/unexports all diretories
+sudo exportfs -rv			# r: re-export all directories, after editing /etc/exports
+sudo exportfs -r
+sudo service nfs-kernel-server restart
+
+
+Testing
+-------
+# this command worked
+sudo mount -t nfs -vvvv -o nfsvers=3 127.0.0.1:/srv/nfs/bbb/ /srv/nfs_test/
+
+#mentioned 127.0.0.1 in exports file
+sudo mount -t nfs -vvvv 127.0.0.1:/srv/nfs/bbb/ /srv/nfs_test/		
+
+# mentioned 192.168.1.18, then mount command works
+sudo mount -o nolock 192.168.1.18:/srv/nfs/bbb /srv/nfs_test		
+
+to unmount
+----------
+sudo umount /srv/nfs_test

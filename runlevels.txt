@@ -1,0 +1,19 @@
+# /etc/inittab for system V init 
+# /etc/init.d/rcS for busybox init
+# How to trigger these Runlevels
+# After linux boots, the init program reads the /etc/inittab file to determine the behavior 
+# for each runlevel. Unless the user specifies another value as a kernel boot parameter, the
+# system will attempt to enter the default runlevel.
+# /etc/inittab is used to set the default run level for system
+# type runlevel on prompt to know current run level
+
+
+RL: Run Level  | Mode | Action
+
+RL 0| Halt| shutdown system
+RL 1| Single User Mode| Does not configure network, start daemons, or allow non-root logins
+RL 2| Multi User Mode| Does not configure network, start deamons
+RL 3| Multi User Mode with networking| Starts the system normally
+RL 4| Undefined | Not used/user-definable
+RL 5| X11 | As runlevel 3 + Display Manager
+RL 6| Reboot | Reboots the system

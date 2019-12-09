@@ -1,0 +1,15 @@
+# Link: https://buildroot.org. Read the system requirements, in documentation and find links to download buildroot.
+# Download latest buildroot
+# Buildroot will generate all the images which are listed in readme.txt file under board/<board name> folder.
+## in our example, it is board/beaglebone/readme.txt
+# We can also insttruct buildroot to generate images only what we require, i.e. we can select/deselect what to build and not to build.
+# First command to proceeed is make beaglebone_defconfig
+## defconfig files can be found at configs/ folder
+# After that run, make menuconfig
+# Configure toolchain path, which you have it locally
+# uncheck kernel, uboot as you have them already.
+# run make -j4, once it fails create output/images directory and rerun make -j4.
+# this creates only rootfs.tar
+# extract your rootfs.tar to your nfs root directory. tar -xf rootfs.tar -C /srv/nfs/bbb
+# root:root, 
+# ssh -l root 192.168.1.30 :to login through ssh

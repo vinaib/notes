@@ -17,5 +17,5 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
 # with static compilation, libc and its dependent libraries will be part of busybox binary
 
 # build busybox 
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_PREFIX=/home/vinai/workspace/bbb/out istall
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_PREFIX=/home/vinai/workspace/bbb/out install
 

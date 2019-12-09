@@ -8,3 +8,9 @@
 ## kthreadd: pid 2: used to spawn other kernel thread
 # after launching these two threads, it starts "idle" thread and calls schedule() to kick scheduler.
 ## idle thread is infinite loop while(1)
+# Linux init program
+## busybox init: rcS
+### busybox init looks for rcS script under /etc/init.d/
+## system V init: inittab
+### system V init looks for inittab script under /etc/init.d/. By default busybox doesnot support inittab
+

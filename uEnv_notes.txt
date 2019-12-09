@@ -9,7 +9,23 @@
 # ipaddr=192.168.1.10
 
 mypcip=setenv serverip 192.168.1.15
-ipaddr=192.168.1.10
+ipaddr=192.168.1.30
 bootargs=console=ttyO0,115200 root=/dev/mmcblk0p2 rw
 bootcmd=echo "***** Booing from meory *****";load mmc 1:2 0x82000000 /boot/uImage;load mmc 1:2 0x88000000 /boot/am335-boneblack.dtb; bootm 0x82000000 - 0x88000000;
+
+
+# Commands to boot uImage from tftpboot and mount RFS from NFS
+console=ttyO0,115200n8
+ipaddr=192.168.1.30
+serverip=192.168.1.18
+absolutepath=/var/lib/tftp/				#tftp server path, where images resides on host PC
+rootpath=/srv/nfs/bbb,nolock,wsize=1024,rsize=1024 rootwait rootdelay=5 ip=192.168.1.30 # path for RFS on Host PC, mount using nfs, 
+									 # rsize= readsize, wsize= write size, root delay=5 seconds: 
+									 # Linux will halt for 5 secondsbefore trying to mount RFS using NFS PCL.
+loadtftp=echo Booting from network ...;tftpboot ${loadaddr} uImage; tftpboot ${fdtaddr} am335x-boneblack.dtb
+									# loadaddr is where uImage is loaded on to ram:part of uboot default env variables: for uImage: 0x82000000
+									# fdtaddr is where dtb is loaded on to ram: part of uboot default env variabes: for dtb:0x88000000
+netargs=setenv bootargs console=${console} root=/dev/nfs rootfstype=nfs rw nfsroot=${serverip}:${rootpath}
+									#  root=/dev/nfs rw, nfsroot={serverip}:${rootpath}: mount ROOTFS as NFS
+uenvcmd=setenv autoload no;run loadtftp;run netargs;bootm ${loadaddr} - ${fdtaddr}
 

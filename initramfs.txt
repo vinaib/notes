@@ -1,0 +1,6 @@
+1) Download root file system from TI software SDK "am335x_tiny_filesystem.zip".
+2) Extract the folder and run following two commands
+a) find . |cpio -H newc -o > ../initramfs.cpio		# generate CPIO archive
+b) cat ../initramfs.cpio | gzip > ../initramfs.gz	# generate gz archive
+3) install mkimage command: sudo apt-get install u-boot-tools
+4) mkimage -A arm -O Linux -T ramdisk -C none -a 0x80800000 -n "Root FS" -d ../initramfs.gz ../initramfs  //give spaces between option and string

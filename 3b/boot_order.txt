@@ -1,0 +1,15 @@
+AM335X Boot Sequence
+
+sysboot[4:0]:
+--------------
+1) Button S2 not pressed
+MMC1
+MMC0
+UART0
+USB)
+
+2) Button S2 pressed
+SPI0
+MMC0
+USB0
+UART0

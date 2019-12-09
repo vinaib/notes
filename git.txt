@@ -337,3 +337,28 @@ git clone -depth=1 <repo>
 # Demo for very bad update: this change is going to cause merge conflict
 # Demo for stash: good bad ugly
 # Demo for stash: better best
+
+# SSH based authentication
+## go to your repo directory
+## mkdir .ssh; cd .ssh
+## ssh-keygen -r rsa -C "vinaibangala2001@gmail.com"
+### this command generates public/private rsa key pair
+### -t is type 
+### -C is common name
+
+# once public/private is generated, under .ssh folder id_rsa and id_rsa.pub files are created
+# on linux ssh-keygen will generate above files under .ssh folder in home directory not under current 
+# location. So above mkdir .ssh is irrelevant.
+id_rsa is Private key
+id_rsa.pub is public key
+# open the id_rsa.pub file, copy the enitre contents of the file
+
+# go to https://github.com/: Open settings under your profile. Click on SSH keys
+# SSH Keys are based on your development machines. One for each machine.
+# after adding public key, it can be verified by following command from your development machine
+# ssh -T git@github.com
+# On executing above command, it will greet by your name and say successfully authenticated, and also say
+gitgub does not provide shell access
+
+
+
