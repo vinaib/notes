@@ -265,7 +265,7 @@ git init
 git add README.md
 git commit -m "first commit"
 git remote add origin https://github.com/vinaib/notes.git
-git push -u origin master
+git push -u origin master					# origin: remote branch name, master: local branch name
 
 ## …or push an existing repository from the command line
 git remote -v							# displays remote repo connections set
@@ -379,5 +379,145 @@ origin	https://github.com/vinaib/notes.git (push)
 # you want to checkout git repo to the different folder name then use below command
 # git clone git@github.com:vinaib/arm_asm.git asm_programming
 
+# git push
+# omitting remote and local branch names from git push.
+# git will throw warnings and suggests to set following global config
+# git config --global push.default matching	# this is old git behavior (before 2.0), when git push is executed it will push all branch changes to remote
+# git config --global push.default simple	# this is new git behavior (>= 2.)), when git push is executed, it will push only current changes to remote
+# to suppress this warnings, set above global config
+
+# Fetch and Pull
+# Pull: is two commands operations:
+## Fetch: fetch all the updates from remote repo
+## and Merge: auto merge into current repo, most of the times merge is done automatically or fastforward merge
+## if pull fails, that is if we have both local and remote changes in same file then pull fails.
+## in these scenarios first use
+# git fetch		# fetch changes, but not merge
+# git pull		# merge local and remote changes
+
+# If remote repo name has changed after clone to local, then to update your local repo, please use following command
+## git remote set-url origin git@github.com:vinaib/newname.git
+## git remote -v
+## git remote show origin	# show additional info about remote
+
+# creating branches: many ways to create
+# one way: from github.com, by GUI
+# second way: from local repo
+git checkout -b <branch name>		# -b to create branch name and switches to new branch
+eg: git checkout -b profile_a
+
+# to Push locally created branch to remote, use 
+git push -u origin profile_a		# origin is remote branch, profile_a is local branch
+					# -u is required to setup track relationship. This is only for first time
 
 
+# to switch to another branch
+# git st				# displays current branch name
+# git checkout master			# switches to master branch
+# git checkout profile_a		# swithces to profile_a branch
+# git st				# shows that we are on profile_a branch
+# git merge master			# current branch is profile_a, and merge the changes from master branch to profile_a(current) branch
+# git push				# push local changes to origin
+# git branch -d profile_a		# delete branch, even after executing this command, git st will list this branch. This can be fixed by git fetch -p
+# git fetch -p				# prune, remove stale branches
+
+# for branches created on remote, those branches will not be shown on local when we do "git branch -a"
+# solution is do "git fetch". This command will fetches all information
+
+# command to pull all branch changes
+git pull --all				# this command will pull all tracking branch changes, even if you are on other branch
+
+# command to merge changes from branch profile_a to master branch.
+# you should be on master branch, you can check it by "git status"
+git merge profile_a
+
+# now we can delete profile_a branch
+git branch -d profile_a			# this command will delete branch locally, but not remote
+
+# command to delete remote profile_a branch
+git push origin :proflie_a		$ this command will delete branch remote
+
+# finally push master
+git push
+
+
+# Case: Remote changes which are not pulled, i.e. your local is 1 commit behind of origin
+# and you have local changes, which are commited. i.e. local is 1 commit ahead of origin
+# now if you do
+git fetch		# to get the remote changes to your local, 
+
+# on command
+git st			# you see, your branch has diverged and have 1 and 1 different commit each
+
+# you can pull the changes, to have merge fastforward commit,(git pull). 
+# Suppose you want to stay always ahead of origin to do that you have to do rebase
+git pull --rebase		# rebase, instead of merge, 
+
+# message from above git command
+# First, rewinding head to replay your work on top of it and then applying local commits on top of it.
+# Updating locally before rebase.
+# now push your local changes to origin
+git push
+
+# graph
+git log --oneline --graph
+
+
+
+# Create conflict and resolve conflict using merge tool
+# update and commit file on master branch on remote
+# go back to console, do git fetch, not git pull
+# see git st, your local branch will be 1 commit behind
+# update and commit same file locally.
+# see git st, for conflict message
+# now pull remote changes, merge will fail with conflicts
+# open mergetool, git mergetool
+# p4 mergetool opens 3way window and merge the changes manually
+# commit the changes :git commit -m "resolving conflict"
+# git push, push local to remote
+
+# view oneline git log
+git log --oneline
+
+# tags: command to list the tags
+git tags
+## create tag: simple light weight tag. Light weight tags just label the specific commits
+git tag <tag name> <reference: branch name, commit, ...>
+git tag unstable develop	# creating tag "unstable" on develop branch
+git tag stable master		# creating tag "stable" on master branch
+
+# Creatin of release tag or more annonated tags
+git tag -a v0.1-alpha -m "Release 0.1 (Alpha)" <commit id, branch, ...>
+# with annonated tag, git show can be used
+git show v0.1-alpha
+git tag -a v0.2-alpha -m "Release 0.2 (Alpha)" <commit id, branch, ...>
+git tag -a v0.3-alpha -m "Release 0.3 (Alpha)" <commit id, branch, ...>
+git tag -a v0.1-prealpha -m "pre alpha release" 71169e3
+
+# pushing local tags to git hub
+git push origin stable 	# stable is tag name
+# to push all local tags to github remote
+git push --tags
+
+# Deleting tags
+# user can delete tags from github webview, after deleting tag from remote, it has to be deleted from local too
+# go to local space
+# git fetch -p
+# git tag -d <tag name>
+
+# Deleting tag from local, cmdline
+git tag -d <tagname>
+git push origin :tagname
+
+# creating floating tag
+git tag -f unstable <commit id>
+git tag -f unstable			# git assumes head
+
+git log --oneline
+git log --oneline --decorate
+
+git push --force origin unstable	# force option is required, else git refuses to push unstable tag to remote
+
+# Differences between tags and releases
+
+# comparing commits
