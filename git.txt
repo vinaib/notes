@@ -52,6 +52,22 @@ git init uboot
 # output of command
 "Intialized empty Git repository in /home/vinai/workspace/projects/uboot/.git/"
 
+# create git repo under current directory
+git init .    
+git add .
+git commit -am "initial commit"
+git remote add origin "https://github.com/vinaib/uboot.git"
+
+git remote add origin "git@:github.com:vinaib/uboot.git"		
+# this command sets the fetch and push url. This can be cross verified by command
+git remote -v
+
+# before pushing newly created repo from locally. The same repo has to be
+# created at origin/remote. In this example we have to create new repo uboot.git
+# "with the same name" at github.com. Once created we can push local to
+# remote/origin by using following command.
+git push -u origin master --tags
+
 # Git states
 ## wworking directory:
 ## Staging Area
