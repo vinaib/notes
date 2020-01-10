@@ -1,6 +1,18 @@
 # uboot project: 
-## ftp link to download: ftp://ftp.denx.de/pub/u-boot/
-## git project: git clone https://github.com/u-boot/u-boot.git 
+## ftp: ftp://ftp.denx.de/pub/u-boot/
+## https: git clone https://github.com/u-boot/u-boot.git 
 
-# busybox: https://busybox.net/about.html
-# bootlin: https://bootlin.com/blog/2020-internships/
+# linux 
+## link: https://github.com/beagleboard/linux
+## git: 
+### https://github.com/beagleboard/linux.git
+### ssh: git@github.com:beagleboard/linux.git
+
+# busybox: 
+## Link: https://busybox.net/about.html
+
+# buildroot:
+## Link
+
+# bootlin
+## Link: https://bootlin.com/blog/2020-internships/
