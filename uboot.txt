@@ -8,14 +8,14 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- distclean KBUILD_OUTPUT=/home/v
 ## Apply board default configuratin for uboot
 ## In latest versions of u-boot am335x_boneblack_defconfig is removed. We should use
 ## am335x_evm_defconfig
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- am335x_evm_defconfig KBUILD_OUTPUT=/home/vinai/projects/bbb/out/uboot
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/uboot am335x_evm_defconfig
 
 # above command generates .config
 # if you want to change the .config, run menucofig
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabhihf- menuconfig KBUILD_OUTPUT=/home/vinai/projects/bbb/out/uboot
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabhihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/uboot menuconfig
 
 # to compile uboot
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j16 KBUILD_OUTPUT=/home/vinai/projects/bbb/out/uboot
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/uboot -j12
 
 u-boot source:
 --------------

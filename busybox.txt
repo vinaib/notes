@@ -7,15 +7,17 @@ git branch -a					# list all branches
 git checkout remotes/origin/1_NN_stable
 
 # apply default config
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- defcofig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/busybox defconfig
 
 # change config by menuconfig
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/busybox menuconfig
 
 # build busybox in static way, we can also compile as dynamic
 # you can change to static compilation under menuconfig
 # with static compilation, libc and its dependent libraries will be part of busybox binary
 
 # build busybox 
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_PREFIX=/home/vinai/workspace/bbb/out install
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_PREFIX=/home/vinai/projects/bbb/out/filesystem KBUILD_OUTPUT=/home/vinai/projects/bbb/out/busybox install -j12
 
+Directories/files installed from above step is sufficient as a file system to
+boot linux successfully

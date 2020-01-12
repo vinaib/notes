@@ -1,8 +1,18 @@
 Install and configure tftpd on ubuntu
--------------------------------------
+------------------------------------- 
+# On Ubuntu 18.04 tftpd did not worked, so I uinstalled tftpd and tried
+# tftpd-hpa. please see step 12 for installing and configuring tftpd-hpa. But
+# still used tftp client from last installation. During installation of
+# tftpd-hpa the installer found /var/lib/tftpboot directory and configured this
+# directory as home directory in /etc/default/tftpd-hpa.
 1) sudo apt-get install xinetd tftp tftpd
+
+# removed packages xinetd and tftpd and also removed /etc/xinetd.d/tftp
+# configuration file.
+sudo apt remove xinetd tftpd
+
 2) sudo vi /etc/xinetd.d/tftp
-servce tftp 
+service tftp 
 {
 protocol = udp
 port = 69
@@ -37,3 +47,15 @@ tfpboot 0x82000000 uImage
 
 11) bootm ${kernel_load_address} ${initramfs_load_address} ${dtb_load_address}
 bootm 0x82000000 0x88080000 0x88000000 
+
+12) sudo apt get install tftpd-hpa
+
+13) configuring:
+/etc/default/tftpd-hpa
+TFTP_USERNAME="tftp"
+TFTP_DIRECTORY="/var/lib/tftpboot"
+TFTP_ADDRESS=":69"
+TFTP_OPTIONS="--secure"
+
+14) command to check tftp
+ps -aef | grep tftp

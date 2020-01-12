@@ -10,9 +10,12 @@
 
 # busybox: 
 ## Link: https://busybox.net/about.html
+## git: git clone git://busybox.net/busybox.git
+### git branch -a                   # list all branches
+### git checkout remotes/origin/1_31_stable
 
 # buildroot:
-## Link
+## Link: https://buildroot.org
 
 # bootlin
 ## Link: https://bootlin.com/blog/2020-internships/
