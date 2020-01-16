@@ -17,4 +17,8 @@ tar -xf file.tar.xz
 tar -cJf file.tar.xz folder
 xz filename
 
-
+Binary utilities
+------------------
+readelf
+size
+objdump

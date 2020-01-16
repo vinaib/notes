@@ -1,0 +1,306 @@
+Reference: https://www.linuxjournal.com/article/6463
+
+Further Reading:
+https://lwn.net/Articles/631631/
+http://www.linux-tutorial.info/modules.php?name=MContent&pageid=327
+https://www.quora.com/What-happens-after-executing-an-executable-or-a-out-file
+	https://www.quora.com/How-is-a-program-loaded-and-executed-under-Linux/answer/Peter-Teoh-1
+	https://www.quora.com/In-Linux-after-a-fork-where-exactly-does-the-childs-execution-start-If-the-childs-program-counter-is-the-same-as-the-parents-does-it-start-executing-the-same-kernel-code-that-the-parent-was-executing-or-does-it-start-executing-in-user-space
+
+https://www.cs.swarthmore.edu/~newhall/unixhelp/compilecycle.html
+
+Linking: 
+--------
+Linking is the process of combining various pieces of code and data
+together to form a single executable that can be loaded in memory.
+
+Linking can be done 
+		at compile time, 
+		at load time (by loaders) and also 
+		at run time (by application programs).
+
+Loader:
+------
+On running a.out on shell, shell invokes the loader function, execve. The execve
+which copies the code and data in the a.out into memory and then transfers
+control to the beginning of the program.
+
+a.out: Assembler OUTput.
+
+
+Linker and Loaders perform varoius related but conceptually different tasks.
+a considerable overlap exists between the functions of linkers and loaders. One
+way to think of them is: the loader does the program loading; the linker does
+the symbol resolution; and either of them can do the relocation.
+----------------------------------------------------------------------------
+# Program Loading:
+This refers to copying a program image from hard disk to the main memory in
+order to put the program in a ready-to-run state.
+
+# Relocation:
+Compilers and assemblers generate the object code for each input module with a
+starting address of zero. Relocation is the process of assigning load addresses
+to different parts of the program by merging all sections of the same type into
+one section. The code and data section also are adjusted so they point to the
+correct runtime addresses.
+
+# Symbol Resolution:
+A program is made up of multiple subprograms; reference of one subprogram to
+another is made through symbols. A linker's job is to resolve the reference by
+noting the symbol's location and patching the caller's object code.
+
+Object Files
+-------------
+# Relocatable object file:
+---------------------------
+which contains binary code and data in a form that can
+be combined with other relocatable object files at compile time to create an
+executable object file.
+
+# Executable object file:
+--------------------------
+which contains binary code and data in a form that can
+be directly loaded into memory and executed..
+
+# Shared object file:
+----------------------
+which is a special type of relocatable object file that can be loaded into
+memory and linked dynamically, either at load time or at run time.
+
+Object files vary from system to system. 
+# The first UNIX system used the a.out format. 
+# Early versions of System V used the COFF (common object file format).
+# Windows NT uses a variant of COFF called PE (portable executable) format; 
+# IBM uses its own IBM 360 format. 
+# Modern UNIX systems, such as Linux and Solaris use the UNIX ELF (executable
+  and linking format)..
+
+ELF Format: ELF Relocatable object file
+---------------------------------------
+Each ELF file is made up of: (in following order)
+# One ELF header
+# Program Header table, describing zero or more memory segments
+# Section Header table, describing zero or more section
+# Data referred by entries in the Program Header table or section header table
+
+ELF Header:  Refer wikipedia
+-----------
+# readelf -h a.out  ; displays elf header
+# length: 52 bytes for 32 bit binary, 64 bytes for 64 bit binary
+# off 0x00:4: e_ident[EI_MAG0..3] Starts with 4 Byte magic string ".ELF" (7F  45 4c 46)
+# off 0x04:1: e_ident[EI_CLASS] value 1: 32 bit format, 2: 64 bit format 
+# off 0x05:1: e_ident[EI_DATA] value 6 th byte: endianness, 1: for little endian , 2: for big endian. This effects
+multibyte fields 
+# off 0x06:1 e_ident[EI_VERSION]
+# off 0x07:1 e_ident[EI_OSABI] Target operating system ABI, 0 for System V. which is default
+Value 	ABI
+0x00 	System V
+0x01 	HP-UX
+0x02 	NetBSD
+0x03 	Linux
+0x04 	GNU Hurd
+0x06 	Solaris
+0x07 	AIX
+0x08 	IRIX
+0x09 	FreeBSD
+0x0A 	Tru64
+0x0B 	Novell Modesto
+0x0C 	OpenBSD
+0x0D 	OpenVMS
+0x0E 	NonStop Kernel
+0x0F 	AROS
+0x10 	Fenix OS
+0x11 	CloudABI
+# off 0x08:1 e_ident[EI_ABIVERSION]
+# off 0x09:7 e_ident[EI_PAD] 
+# off 0x10:2 e_type 
+Value 	Type
+-----------------
+0x00 	ET_NONE
+0x01 	ET_REL
+0x02 	ET_EXEC
+0x03 	ET_DYN
+0x04 	ET_CORE
+0xfe00 	ET_LOOS
+0xfeff 	ET_HIOS
+0xff00 	ET_LOPROC
+0xffff 	ET_HIPROC 
+# off 0x12:2 e_machine: Target Instruction set architecture:
+Value 	ISA
+---------------------------------
+0x00 	No specific instruction set
+0x02 	SPARC
+0x03 	x86
+0x08 	MIPS
+0x14 	PowerPC
+0x16 	S390
+0x28 	ARM
+0x2A 	SuperH
+0x32 	IA-64
+0x3E 	x86-64
+0xB7 	AArch64
+0xF3 	RISC-V
+# off 0x14:4 e_version
+# off 0x18:8 e_entry: This is the memory address of the entry point from where
+  the process starts executing. 
+# off 0x20:8 e_phoff: points to the start of the program header table. It
+  usually follow the file header immediately.
+# off 0x28:8 e_shoff: points to the start of the section header table
+# off 0x30:4 e_flags: 
+# off 0x34:2 e_ehsize: contains the size of this header, 64B-64bit, 52B-32bit
+# off 0x36:2 e_phentsize: contains the size of a program header table 
+# off 0x38:2 e_phnum: contains the number of entries in the program header table
+# off 0x3A:2 e_shentsize: contains the size of a section header table entry
+# off 0x3C:2 e_shnum: contains the number of entries in the section header table
+# off 0x3E:2 e_shstrndx: contains index of the section header table entry that
+  contains the section names
+# off 0x40	end of elf header size
+
+Program Header:
+---------------
+The program header table tells the system how to create a process image. It is
+found at file offset e_phoff (elf hdr), and consists of e_phnum (elf hdr) entries, 
+each with size e_phentsize(elf hdr). The layout is slightly different in 32-bit 
+ELF vs 64-bit ELF,	because the p_flags are in a different structure location for 
+alignment reasons. Each entry is structured as:
+# off 0x00:4: p_type: loadable segment, dynamic linking info, interpreter info, aux
+info, reserverd, header ...
+Value 		Name 		Meaning
+0x00000000 	PT_NULL 	Program header table entry unused
+0x00000001 	PT_LOAD 	Loadable segment
+0x00000002 	PT_DYNAMIC 	Dynamic linking information
+0x00000003 	PT_INTERP 	Interpreter information
+0x00000004 	PT_NOTE 	Auxiliary information
+0x00000005 	PT_SHLIB 	reserved
+0x00000006 	PT_PHDR 	segment containing program header table itself
+0x00000007 	PT_TLS 		Thread-Local Storage template
+0x60000000 	PT_LOOS 	
+0x6FFFFFFF 	PT_HIOS
+0x70000000 	PT_LOPROC
+0x7FFFFFFF 	PT_HIPROC
+PT_LOOS to PT_HIOS (PT_LOPROC to PT_HIPROC) is an inclusive reserved ranges for
+operating system (processor) specific semantics. PT_LOOS to PT_HIOS (PT_LOPROC
+	to PT_HIPROC) is an inclusive reserved ranges for operating system
+(processor) specific semantics. 
+
+# off 0x04:4: p_flags: segment dependent flags
+# off 0x08:8: p_offset of the segment in the file image
+# off 0x10:8: p_varaddr: virtual address of the segment in memory
+# off 0x18:8: p_paddr: on systems where physical address is relevant, rsvd for
+segment's physical address
+# off 0x20:8: p_filesz: size in bytes of the segment in the file image
+# off 0x28:8: p_memsz: size in bytes of the segment in memory
+# off 0x30:8: p_align: 0 and 1 specify no alignment, Otherwize should be a
+positive, integral power of 2, wtj p_vaddr equating p_offset modulus p_align.
+# off 0x38: End of program Header (size)
+
+Section Header:
+---------------
+# off: 0x00:4	sh_name: An offset to a string in the .shstrtab section that
+represents the name of this section
+# off 0x04:4: sh_type: identifies the type of this header
+Value 	Name 				Meaning
+0x0 	SHT_NULL 			Section header table entry unused
+0x1 	SHT_PROGBITS 		Program data
+0x2 	SHT_SYMTAB 			Symbol table
+0x3 	SHT_STRTAB 			String table
+0x4 	SHT_RELA 			Relocation entries with addends
+0x5 	SHT_HASH 			Symbol hash table
+0x6 	SHT_DYNAMIC 		Dynamic linking information
+0x7 	SHT_NOTE 			Notes
+0x8 	SHT_NOBITS 			Program space with no data (bss)
+0x9 	SHT_REL 			Relocation entries, no addends
+0x0A 	SHT_SHLIB 			Reserved
+0x0B 	SHT_DYNSYM 			Dynamic linker symbol table
+0x0E 	SHT_INIT_ARRAY 		Array of constructors
+0x0F 	SHT_FINI_ARRAY 		Array of destructors
+0x10 	SHT_PREINIT_ARRAY 	Array of pre-constructors
+0x11 	SHT_GROUP 			Section group
+0x12 	SHT_SYMTAB_SHNDX 	Extended section indices
+0x13 	SHT_NUM 			Number of defined types.
+0x60000000 	SHT_LOOS 		Start OS-specific.
+
+# off 0x08:8 sh_flags: identifies the attributs of the section
+Value 		Name 					Meaning
+0x1 		SHF_WRITE 				Writable
+0x2 		SHF_ALLOC 				Occupies memory during execution
+0x4 		SHF_EXECINSTR 			Executable
+0x10 		SHF_MERGE 				Might be merged
+0x20 		SHF_STRINGS 			Contains nul-terminated strings
+0x40 		SHF_INFO_LINK 			'sh_info' contains SHT index
+0x80 		SHF_LINK_ORDER 			Preserve order after combining
+0x100 		SHF_OS_NONCONFORMING 	Non-standard OS specific handling required
+0x200 		SHF_GROUP 				Section is member of a group
+0x400 		SHF_TLS 				Section hold thread-local data
+0x0ff00000 	SHF_MASKOS 				OS-specific
+0xf0000000 	SHF_MASKPROC 			Processor-specific
+0x4000000 	SHF_ORDERED 			Special ordering requirement (Solaris)
+0x8000000 	SHF_EXCLUDE 			Section is excluded unless referenced or allocated (Solaris)
+
+# off 0x10:8: sh_addr: Virtual address of the section in memory, for sections
+that are loaded
+# off 0x18:8: sh_offset: offset of the section in the file image
+# off 0x20:8: sh_size: Size in bytes of the section in the file image. May be 0
+# off 0x28:4: sh_link: Contains the section index of an associated section. This field is used for several purposes, depending on the type of section. 
+# off 0x2c:4: sh_info: Contains extra information about the section. This field is used for several purposes, depending on the type of section.
+# off 0x30:8: sh_addralign: Contains the required alignment of the section. This field must be a power of two. 
+# off 0x38:8: sh_entsize: Contains the size, in bytes, of each entry, for sections that contain fixed-size entries. Otherwise, this field contains zero. 
+# off 0x40	: End of section header (size)
+
+The various section in the ELF relocatable object file are:
+# .text: the machine code of the compiled program.
+# .rodata, read-only-data, such as the format strings in printf statements.
+# .data, initialized global variables.
+# .bss, uninitialized global variables. BSS stands for block storage start, and
+   this section actually occupies no space in the object file; it is merely a
+   placer holder.
+# .symtab, a symbol table with information about functions and global variables
+   defined and referenced in the program. This table does not contain any entries
+   for local variables; those are maintained on the stack.
+# .rel.text, a list of locations in the .text section that need to be modified
+   when the linker combines this object file with other object files.
+# .rel.data, relocation information for global variables referenced but not
+   defined in the current module.
+# .debug, a debugging symbol table with entries for local and global variables.
+   This section is present only if the compiler is invoked with a -g option.
+# .line, a mapping between line numbers in the original C source program and
+   machine code instructions in the .text section. This information is required
+   by debugger programs..
+# .strtab, a string table for the symbol tables in the .symtab and .debug sections.
+
+Symbols and Symbol Resolution
+-----------------------------
+Every relocatable object file has a symbol table and associated symbols. In the
+context of a linker, the following kinds of symbols are present:
+
+# Global symbols defined by the module and referenced by other modules:
+  All non-static functions and global variables fall in this category.
+
+# Global symbols referenced by the input module but defined elsewhere:
+  All functions and variables with extern declaration fall in this category.
+ 
+# Local symbols defined and referenced exclusively by the input module:
+  All static functions and static variables fall here.
+
+Resolution of local symbols to a module is straightforward, as a module cannot
+have multiple definitions of local symbolsResolution of local symbols to a
+module is straightforward, as a module cannot have multiple definitions of local
+symbols
+
+Resolving references to global symbols is trickier, however. At compile time,
+the compiler exports each global symbol as either strong or weak.
+
+Strong:
+Functions and initialized global variables get strong weight, 
+
+Weak:
+while global uninitialized variables are weak. 
+
+Now, the linker resolves the symbols using the following rules:
+#1 Multiple strong symbols (same name) are not allowed.
+#2 Given a single strong symbol and multiple weak symbols, choose the strong symbol.
+#3 Given multiple weak symbols, choose any of the weak symbols.
+
+PLT/GOT Table:
+--------------
+
