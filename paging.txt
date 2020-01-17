@@ -1,0 +1,67 @@
+Paging: 
+-------
+Usually there is lot more virtual memory than real memory, the pages
+must move back and forth betn real memory and backing store regularly, coming
+into real memory when process needs to access them and then retreating to
+backing store when not needed anymore. This movement is called paging.
+
+Page fault:
+-----------
+When a program attemps to access a page which is not at that moment backed by
+real memory, this is known as page fault.
+
+When a page fault occurs, the kernel suspends the process, places the page into
+a real page frame. This is called "paging in" or "faulting in" then resmes the
+process.
+
+Background:
+----------
+Process allocate memory in two major ways
+by exec: Exec is the operation of creating virtual address space for a process,
+   loading its basic program into it and executing the program. It is done by
+   exec family of functions.
+   this includes: code/text, data and bss segments
+   Memory allocated by exec cannot be freed.
+
+by programmatically: Once program begins to execute, it uses programmatic
+	allocation to gain additional memory. It can be done in two ways. One is
+	automatic and dynamic.
+	Memory allocated by programmatically can be freed.
+
+A process virtual address space is divided into segements. A segment is a
+contiguous range of virtual addresses. Three imp segments are:
+
+text segment: pgm insttructions and literals and static constants allocated by
+	exec and stays same size for the life of virtual address space.
+
+	data segment: is working sstorage for the program. It can be preallocated
+	and preloaded by exec and the process can extend or shrink by resizing the
+	data segment. Its lower end is fixed
+
+	stack segment: contains program stack. It grows as stack gorws. but does not
+	shrink when the stack shrinks.
+
+mmap:
+----
+To determine the default size of a page the machine uses one should use:
+size_t page_size = (size_t) sysconf (_SC_PAGESIZE);
+
+mmap only works on entire pages of memory. Thus, addresses for mappingmust be
+page-aligned, and length values will be rounded up.
+
+
+/dev/mem:
+---------
+see man pages for: man mem
+/dev/mem, /dev/kmem, /dev/port
+
+To use /dev/mem to view and modify regular RAM on kernel:
+Disable: CONFIG_STRICT_DEVMEM
+pass the nopat kernel command line option for x86.
+
+Traditionally, /dev/mem provided access to the entire physical address space,
+	which includes ram but it also includes any memory mapped i/o devices. Man y
+	modern kernels will be configured with CONFIG_STRICT_DEVMEM which restricts
+	/dev/mem to memory mapped IO devices only.
+
+
