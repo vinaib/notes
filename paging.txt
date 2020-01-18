@@ -64,4 +64,38 @@ Traditionally, /dev/mem provided access to the entire physical address space,
 	modern kernels will be configured with CONFIG_STRICT_DEVMEM which restricts
 	/dev/mem to memory mapped IO devices only.
 
+Jargons in virtual memory/memory: 
+---------------------------------
+Swapping
+Virtual Memory
+Page replacement algorithms
+Segmentation
+Cache
+TLB (Translation Lookup Buffers)
+Page tables
+Paging
+Multilevel Page Tables
+N Way Cache
+Set Associative Cache
 
+
+Clone():
+--------
+Clone() allows the child process to share parts of its execution context with
+	the calling process, such as the virtual address space, the table of file
+	descriptors, and the table of signal handlers.
+
+	One use of clone() is to implement threads: multiple flows of control in a
+	program that run concurrently in a shared address space.
+
+fork()
+------
+fork() creates a new process by duplicating the calling process.
+
+The child process and the parent process run in separate memory spaces.  At the
+time of fork() both memory spaces have the same content.  Memory writes, file
+mappings (mmap(2)), and unmappings (mun‐map(2)) performed by one of the
+processes do not affect the other.
+
+The only thing that is shared between the parent and the child process is the
+text section which is unchangeable.

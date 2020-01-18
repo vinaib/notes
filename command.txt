@@ -22,3 +22,17 @@ Binary utilities
 readelf
 size
 objdump
+
+VI commands:
+------------
+1) Repeating characters in VIM insert node: Like insert 20 dashes.
+ctrl + o, 20, i, -, esc
+
+
+
+Proc file system
+-----------------
+1) mount proc /proc -t proc
+
+# check which filesystems running kernel support
+cat /proc/filesystems

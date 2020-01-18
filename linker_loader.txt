@@ -304,3 +304,73 @@ Now, the linker resolves the symbols using the following rules:
 PLT/GOT Table:
 --------------
 
+
+
+x86: process layout(range):
+---------------------------
+.text  : starts at 0x0804 8000
+.stack : High mem at 0xBFFF FFFF. Stack grows downwards towards low memory
+	address
+
+On Beagle Bone Black: Arm32(range):
+-----------------------------------
+cat /proc/self/maps or any other running process you take: 
+	.text always starts at 0x0001 0000
+
+On successive execution above command, .text is always same but stack range
+keeps changing. Why this happens?
+In order to stop buffer overflow attacks, virtual address randomization has been
+implemented in linux kernel version 2.6 and above. 
+
+What does this mean?
+Every time same process runs, stack will not be in the same segments it keeps on
+changing. This makes harder to exploit vulenrabilities which rely on hardcoded
+stack. To make this disable, switch off the virtual address randomization
+feature in the kernel. It can be changed runtime.
+
+cat /proc/sys/kernel/randomize_va_space
+to disable it
+echo 0 > /proc/sys/kernel/randomize_va_space
+
+ASLR:
+Address space layout randomization: 
+Its main goal was to randomize memory segments to make abuse by malicious programs harder.
+
+Default randomize_va_space setting:
+Modern Linux kernels have ASLR enabled by default with the specific value 2.
+0: disabled 
+1: address space is randomized. This includes the positions of the
+stack itself, virtual dynamic shared object (VDSO) page, and shared memory
+regions.
+2: will be similar to 1, and add data segments as well. 
+
+Temporary change(system level):
+-------------------------------
+echo 2 > /proc/sys/kernel/randomize_va_space
+sysctl -w kernel.randomize_va_space=2
+
+Permanent change(system level):
+-------------------------------
+To make this setting permanent and active after a system reboot, 
+add the option to /etc/sysctl.conf.
+
+Temporary change(for a particular process):
+-------------------------------------------
+If you just want to test for a single program you can use the setarch command.
+This leverages a so-called personality flag.
+setarch `uname -m` -R /root/mybinary
+
+At compilation level, to disable stack protectoion:
+----------------------------------------------------
+If you are doing research (e.g. to test how buffer overflows work), keep in mind
+that also the compiler has some protection mechanisms in place.
+gcc -fno-stack-protector -z execstack -o program program.c
+
+on x86-64: Process layout:
+---------------------------
+
+
+
+on ARM 64: Process layout:
+---------------------------
+
