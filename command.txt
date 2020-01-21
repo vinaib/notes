@@ -36,3 +36,11 @@ Proc file system
 
 # check which filesystems running kernel support
 cat /proc/filesystems
+
+VI
+---
+ctrl + p :typing assist, displays all literals starting with
+ctrl + n
+
+:Explore
+ctrl + 6

@@ -1,0 +1,51 @@
+On server
+---------
+
+Fix apt-get error:
+------------------
+refer: https://www.youtube.com/watch?v=ASjtqyyLH-U
+
+1) First run
+sudo apt-get update
+
+2) goto https://repogen.simplylinux.ch/
+choose: 
+1) ubuntu branches: both options under Main - officially supported s/w, Main
+source repository
+2) ubuntu updates: updates: recommended updates, updates sources repository
+
+3) scroll down and press generate list.
+
+4) sudo mv /etc/apt/sources.list /etc/apt/sources.list.original
+
+5) copy generated list to /etc/apt/sources.list
+
+
+# Install linux from ubuntu kernel git
+---------------------------------------
+
+
+# linux from kernel.org
+------------------------
+refer: https://www.linux.com/tutorials/how-compile-linux-kernel-0/
+
+# git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+# configure kernel:
+cp /boot/config-$(uname -r) .config
+
+# make menuconfig
+
+# make
+
+# make modules_install
+
+# make install
+
+# Enable the kernel for boot
+sudo update-initramfs -c -k <4.17-rc2>
+sudo update grub
+
+
+
+
