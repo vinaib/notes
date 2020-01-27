@@ -22,13 +22,19 @@ Binary utilities
 readelf
 size
 objdump
-
+--------------------------------------------------------------------------------
 VI commands:
-------------
+--------------------------------------------------------------------------------
 1) Repeating characters in VIM insert node: Like insert 20 dashes.
 ctrl + o, 20, i, -, esc
 
-
+--------------------------------
+2) select vertical: visual block
+--------------------------------
+in escape mode: press "^v" enables visual block and 
+press delete - to delete text
+y to copy text
+p to paste text
 
 Proc file system
 -----------------
@@ -37,10 +43,151 @@ Proc file system
 # check which filesystems running kernel support
 cat /proc/filesystems
 
+--------------------------------------------------------------------------------
 VI
----
+--------------------------------------------------------------------------------
 ctrl + p :typing assist, displays all literals starting with
 ctrl + n
 
 :Explore
 ctrl + 6
+--------------------------------------------------------------------------------
+# sudo -s
+--------------------------------------------------------------------------------
+type in sudo -s in terminal. This gives super user terminal session.
+
+--------------------------------------------------------------------------------
+xargs: transform the STDIN to arguments,
+--------------------------------------------------------------------------------
+xargs -i@ ~command contains @~: a placeholder for the argument to be used in a
+	specific position in the ~command~, the @ sign is a placeholder which could
+	replaced by any string. 
+
+Example usage of xargs
+----------------------
+# following command ls *.txt, displays all text files in current dir, and each
+ file is passed as an argument to wc -l, which counts the number of lines in
+ each file. The output of this command will be list of number of lines in each
+ file followed by its name.
+
+ls *.txt | xargs wc -l
+--------------------------------------------------------------------------------
+# "sed" to replace a string in multiple files in current folder
+--------------------------------------------------------------------------------
+# occurences of foo will be replaced with bar. Does not work if string has white
+  spaces. This is limited to files in current folder
+
+# To replace a path within files (avoiding escape characters) you may use the
+  following command:
+
+ sed s/regexp/replacement/: substitute string matching regexp with replacement.
+
+ sed s/regexp/replacement/g : global, make the substitution for each match
+							  instead of only the first match.
+
+ sed -i 's/foo/bar/g' *
+
+# The @ sign means that all of the special characters should be ignored in a
+	following string.
+
+sed -i 's@old_path@new_path@g'
+
+--------------------------------------------------------------------------------
+# replace in current and all sub directories: using find
+--------------------------------------------------------------------------------
+find . -type f -exec sed -i 's/foo/bar/g' {} +
+
+--------------------------------------------------------------------------------
+# using grep
+--------------------------------------------------------------------------------
+grep -rlu 'old-word'  * | xargs -i@ sed -i 's/old-word/new-word/g' @
+
+command break down:
+grep -r: --recursive, recursively read all files under each directory.
+grep -l: --print-with-matches, prints the name of each file that has a match,
+	 instead of printing matching lines.
+grep -i: --ignore-case. 
+
+--------------------------------------------------------------------------------
+# grep -rl string1 somedir/ | xargs sed -i 's/string1/string2/g'
+--------------------------------------------------------------------------------
+ grep -rl 'windows' ./ | xargs sed -i 's/windows/linux/g'
+
+# Quick grep explanation:
+    -R - recursive search
+    -i - case-insensitive
+    -I - skip binary files (you want text, right?)
+    -l - print a simple list as output. Needed for the other commands
+
+The grep output is then piped to sed (through xargs) which is used to actually
+replace text. The -i flag will alter the file directly. Remove it for a kind of
+"dry run" mode.Quick grep explanation:
+
+grep -RiIl 'search' | xargs sed -i 's/search/replace/g'
+
+--------------------------------------------------------------------------------
+ctags
+--------------------------------------------------------------------------------
+ctrl ] : jump to the tag underneath the cursor
+:ts <tag> : search for a particular tag
+:tn: go to next definition for the last tag
+:tp: go to previous definition for the last tag
+:ts: list all of the definitions of the last tag
+ctrl-t: jump back up in the tag stack
+
+--------------------------------------------------------------------------------
+awk
+--------------------------------------------------------------------------------
+Operations:
+# Scans a file line by line
+# Splits each input line into fields
+# Compares input line/fields to pattern
+# Performs action(s) on matched lines
+
+Syntax:
+awk options 'selection _criteria {action }' input-file > output-file
+
+-f program-file 
+Reads the AWK program source from the file program-file, instead of from the
+first command line argument.
+
+-F fs
+use fs for input field separator
+
+example:
+1) awk '{print}' <file-name>	# prints every line of data from file
+
+2) awk '/<pattern>/ {print}' <file-name> #print line which matches pattern
+
+3) awk '/<pattern>/ {print $1}' <file-name> #print first column of matched pattern
+
+Built in variables
+S0 : represents entire line
+$1 : first column
+$2 : second column and so on
+
+so example 2 is equivalent to
+4) awk '/<pattern>/ {print $0}' <file-name>
+
+NR : current count of number of input records
+NF : keeps count of number of fields
+RS : record separator, default is new line
+OFS: output field separator
+ORS: output record separator
+
+following command prints first column whose second column value is "abc"
+5) awk '$2 == "abc" {print $1}' <file-name>
+
+--------------------------------------------------------------------------------
+group
+--------------------------------------------------------------------------------
+cat /etc/group
+
+format: 
+group_name:password:group_id:group_list
+
+groups <user name>	# list groups of specified user
+groups : list groups of current user
+
+id : list all id of current user or given user
+id -G : list groups of current user

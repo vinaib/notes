@@ -46,6 +46,7 @@ cp /boot/config-$(uname -r) .config
 sudo update-initramfs -c -k <4.17-rc2>
 sudo update grub
 
-
+# view /boot/
+/boot/grub/grub.cfg
 
 
