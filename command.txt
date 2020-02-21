@@ -19,9 +19,25 @@ xz filename
 
 Binary utilities
 ------------------
-readelf
-size
-objdump
+-> readelf	(cannot disassemble)
+readelf -h a.out	#file header: elf header
+readelf -l a.out	# program headers, section segments
+readelf -S a.out	# all section headers, including their size, very useful,
+					# same as objdump -h a.out
+readelf -x .rodata a.out # dump the contents of rodata (in cannonical form)
+readelf -p .rodata a.out # dump the content of rodata (in strings)
+
+-> size
+size -A a.out (sysv: very detailed format)
+size -B a.out (berkley: short format, this is default if no option is given)
+
+-> objdump
+objdump -S a.out	#intermix source code with assembly
+objdump -D a.out    #dumps assembly code, includes all files
+objdump -h a.out	# dumps section headers
+objdump -x a.out    # dumps all headers
+objdump -d -j .rodata app	# disassemble only rodata segment
+objdump -d -j .text app     # disassemble only text segment
 --------------------------------------------------------------------------------
 VI commands:
 --------------------------------------------------------------------------------
