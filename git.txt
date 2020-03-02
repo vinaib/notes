@@ -539,6 +539,8 @@ git push --force origin unstable	# force option is required, else git refuses to
 # comparing commits
 
 # creating and apply patch
+## Creating diff file
 git diff > patch.diff
 
+## apply patch without commit
 git apply patch.diff
