@@ -27,3 +27,29 @@ u-boot source:
 4) config: contains various board config file
 	beagle bone black: am335x_boneblack_defconfig
 
+Source folders:
+---------------
+-> Board configuration defines:
+include/configs/xxx.h
+arch/arm/include/asm/arch-xxx/
+
+-> CPU dependent code:
+arch/arm/cpu/armv7/
+arch/arm/cpu/armv7/xxx/
+arch/arm/lib/
+
+-> Board dependent code
+board/xxx/
+
+-> Board independent code
+common (cmd, flash, env, stdio, usb)
+disk
+drivers
+SPL: ld script to generate BL2 u-boot
+
+->setup stack to memory and call C function: 
+_board_init_f (f:flash)
+_board_init_r (r:ram)
+crt0.s (c run time environment)	
+-> lowlevel_init.S
+
