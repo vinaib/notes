@@ -537,3 +537,8 @@ git push --force origin unstable	# force option is required, else git refuses to
 # Differences between tags and releases
 
 # comparing commits
+
+# creating and apply patch
+git diff > patch.diff
+
+git apply patch.diff
