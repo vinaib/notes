@@ -55,3 +55,7 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=/home/vinai/pr
 # see modules.order, 
 # modules.dep: lists all modules dependencies
 # modprobe : refers modules.dep to find out the dependencies and load these modules before loading the asked module.
+
+# Adding dtb as part of zImage
+cat arch/arm/boot/zImage arch/arm/boot/dts/myboard.dtb > my-zImage
+mkimage ... -d my-zImage my-uImage
