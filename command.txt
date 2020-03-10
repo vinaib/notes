@@ -207,3 +207,80 @@ groups : list groups of current user
 
 id : list all id of current user or given user
 id -G : list groups of current user
+
+--------------------------------------------------------------------------------
+ps:
+Source:
+https://www.cyberciti.biz/faq/linux-command-to-see-major-minor-pagefaults/
+https://scoutapm.com/blog/understanding-page-faults-and-memory-swap-in-outs-when-should-you-worry
+--------------------------------------------------------------------------------
+ps -o min_flt,maj_flt 1
+
+Major Fault: (for code)
+    A major fault occurs when disk access required. For example, start an app
+	called Firefox. The Linux kernel will search in the physical memory and CPU
+	cache. If data do not exist, the Linux issues a major page fault.
+
+	A major page fault is one that can only be satisfied by accessing the disk.
+
+Minor Fault: (for code)
+    A minor fault occurs due to page allocation.
+
+	A minor page fault can be satisfied by sharing pages that are already in
+	memory.
+
+Copy on Write: (for data)
+	A similar thing happens for data memory used by a program. An executable can
+	ask Linux for some memory, say 8 megabytes, so that it can perform some task
+	or other. Linux doesn't actually give the process 8 megabytes of physical
+	memory. Instead it allocates 8 megabytes of virtual memory and marks those
+	pages as "copy on write." This means that while they are unused there is no
+	need to actually physically allocate them, but the moment the process writes
+	to that page, a real physical page is allocated and the page assigned to the
+	process.
+
+	This happens all the time on a multi-user, multitasking system. The physical
+	memory is used in the most efficient way possible to hold the parts of
+	memory that are actually needed for processes to run.
+
+Swapping:
+	what happens when the kernel doesn't have any more physical memory left? 
+	
+	The kernel will start to write to disk some of the pages which it is holding
+	in memory, and use the newly freed pages to satisfy the current page faults.
+
+	Swap Out:
+	The process of writing pages out to disk to free memory is called
+	swapping-out. 
+
+	Swap In:
+	If later a page fault is raised because the page is on disk, in the swap
+	area rather than in memory, then the kernel will read back in the page from
+	the disk and satisfy the page fault. This is swapping-in.
+	Swapping occurs when pages are written to disk to free memory so that a
+	major page fault can be satisifed.
+
+	Swap activity (swap in and swap out) is the primary performance concern when
+	it comes to page faults.
+
+	The kernel's aggressiveness in preemptively swapping-out pages is governed
+	by a kernel parameter called swappiness. It can be set to a number from 0 to
+	100, where 0 means that more is kept in memory and 100 means that the kernel
+	should try and swap-out as many pages as possible. The default value is 60.
+	Kernel maintainer Andrew Morton has stated that he uses a swappiness of 100
+	on his desktop machines.
+
+ps -o min_flt,maj_flt,cmd,args,uid,gid 1
+
+We can use other standard linux commands such as top, time and sar to view page
+faults for all process or specific process.
+
+# for time provide full path to show page faults
+/usr/bin/time -v firefox
+
+
+top -d 1
+
+sar -B
+
+vmstat 
