@@ -59,6 +59,21 @@ Proc file system
 # check which filesystems running kernel support
 cat /proc/filesystems
 
+sysfs file system
+----------------
+mount sysfs /sys -t sysfs
+
+Debugfs
+-------
+mount none /sys/kernel/debug/ -t debugfs
+
+or create /etc/fstab or /etc/mtab and run mount -a
+---------------------------------------------------
+# entries in fstab
+<filesystem>	<mount_point>		<type>		<options>			<dump>	<pass>
+sysfs			/sys				sysfs		defaults,noatime	0		0
+proc			/proc				proc		defaults			0		0
+debugfs			/sys/kernel/debug 	debugfs 	defaults			0		0
 --------------------------------------------------------------------------------
 VI
 --------------------------------------------------------------------------------
