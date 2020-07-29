@@ -1,0 +1,42 @@
+spinlock:
+
+file: include/linux/spinlock.h
+
+static __always_inline void spin_lock(spinlock_t *lock)
+{
+	raw_spin_lock(&lock->rlock);
+}
+
+#define raw_spin_lock(lock) _raw_spin_lock(lock)
+
+
+file:
+raw_spin_lock() defined in 
+
+
+include/linux/spinlock_api_smp.h
+#define _raw_spin_lock(lock) __raw_spin_lock(lock)
+
+include/linux/spinlock_api_up.h, line 58 (as a macro)
+#define _raw_spin_lock(lock)            __LOCK(lock)
+
+kernel/locking/spinlock.c, line 142 (as a function) 
+void __lockfunc _raw_spin_lock(raw_spinlock_t *lock)
+{
+	__raw_spin_lock(lock);
+}
+
+File:
+include/linux/spinlock_api_smp.h
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
+{
+	preempt_disable();	// increment the thread_info preempt_count
+	spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);	//CONFIG_LOCKDEP_SUPPORT, ignore for now.
+	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
+}
+
+
+# spin_lock: variable
+
+spinlock_t defined to:
+	"u32 slock"
