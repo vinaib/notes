@@ -1,0 +1,1200 @@
+--------------------------------------------------------------------------------
+Kernel preemption disabling:
+--------------------------------------------------------------------------------
+# Uniprocessors
+---------------
+## Non Preemptive Kernels:
+Simple solution to synchronization problems
+
+when a process executes in Kernel Mode, it cannot be arbitrarily suspended and
+substituted with another process.
+
+Therefore, on a uniprocessor system, all kernel data structures that are not
+updated by interrupts or exception handlers are safe for the kernel to access.
+
+A process in Kernel Mode has to relinquish the CPU in this case.
+
+## Preemptive Kernels:
+
+A synchronization mechanism applicable to preemptive kernels consists of
+disabling kernel preemption before entering a critical region and reenabling it
+right after leaving the region.
+
+# Multiprocessors
+-----------------
+Nonpreemptability is not enough for multiprocessor systems, because two kernel
+control paths running on different CPUs can concurrently access the same data
+structure.
+
+--------------------------------------------------------------------------------
+Interrupt disabling
+--------------------------------------------------------------------------------
+# Uniprocessors
+---------------
+Another synchronization mechanism for uniprocessor systems consists of disabling
+all hardware interrupts before entering a critical region and reenabling them right
+after leaving it. 
+
+This mechanism, while simple, is far from optimal. 
+
+If the critical region is large, interrupts can remain disabled for a relatively
+long time, potentially causing all hardware activities to freeze.
+
+# Multiprocessors:
+------------------
+On a multiprocessor system, disabling interrupts on the local CPU is not
+sufficient, and other synchronization techniques must be used.
+
+--------------------------------------------------------------------------------
+Semaphores
+--------------------------------------------------------------------------------
+# Effective in both uniprocessor and multiprocessor systems:
+------------------------------------------------------------
+A semaphore is simply a counter associated with a data structure; it is checked
+by all kernel threads before they try to access the data structure. Each
+semaphore may be viewed as an object composed of:
+• An integer variable
+• A list of waiting processes
+• Two atomic methods: down( ) and up( )
+
+down(): 
+The down( ) method decreases the value of the semaphore. If the new value is
+less than 0, the method adds the running process to the semaphore list and
+then blocks.
+
+up():
+The up( ) method increases the value of the semaphore and, if its new value is
+greater than or equal to 0, reactivates one or more processes in the
+semaphore list.
+
+Operation:
+1) Each data structure to be protected has its own semaphore.
+2) Initialized to 1. 
+3) When a kernel control path wishes to access the data structure, it executes
+the down() method on the proper semaphore. 
+4) If the value of the new semaphore isn’t negative, access to the data
+structure is granted. 
+5) Otherwise the process that is executing the kernel control path is added to
+the semaphore list and blocked. 
+6) When another process executes the up() method on that semaphore, one of the
+processes in the semaphore list is allowed to proceed.
+
+--------------------------------------------------------------------------------
+Spin locks
+--------------------------------------------------------------------------------
+# Semaphore overhead
+--------------------
+In multiprocessor systems, semaphores are not always the best solution to the
+synchronization problems due to overhead including in checking semaphore
+variable and push the task to waiting list of semaphore.
+
+When the time required to update the global varaible is very short when compared
+to semaphore overhead. A semaphore could be very inefficient.
+
+# Alternative to semaphore
+--------------------------
+
+## Multiprocessors
+------------------
+In these cases, multiprocessor operating systems use spin locks. A spin lock is
+very similar to a semaphore, but it has no process list; when a process finds
+the lock closed by another process, it “spins” around repeatedly, executing a
+tight instruction loop until the lock becomes open.
+
+## Uniprocessors
+----------------
+Of course, spin locks are useless in a uniprocessor environment. When a kernel
+control path tries to access a locked data structure, it starts an endless loop.
+Therefore, the kernel control path that is updating the protected data structure
+would not have a chance to continue the execution and release the spin lock. The
+final result would be that the system hangs.
+
+--------------------------------------------------------------------------------
+When Synchronization Is Not Necessary
+--------------------------------------------------------------------------------
+Some design choices simplify the synchronization of kernel control paths:
+
+1) All interrupt handlers acknowledge the interrupt on the PIC and also disable
+the IRQ line. Further occurrences of the same interrupt cannot occur until the
+handler terminates.
+2) Interrupt handlers, softirqs, and tasklets are both nonpreemptable and
+nonblocking, so they cannot be suspended for a long time interval.
+3) A kernel control path performing interrupt handling cannot be interrupted by
+a kernel control path executing a deferrable function or a system call service
+routine.
+4) Softirqs and tasklets cannot be interleaved on a given CPU.
+5) The same tasklet cannot be executed simultaneously on several CPUs.
+
+From above design choices, following can be simplified:
+1) Interrupt handlers and tasklets need not to be coded as reentrant functions
+2) Per-CPU variables accessed by softirqs and tasklets only do not require
+synchronization.
+3) A data structure accessed by only one kind of tasklet does not require
+synchronization.
+
+L: Local CPU
+A: All CPU
+S: Single CPU
+--------------------------------------------------------------------------------
+Technique 			Scope 	Description 
+--------------------------------------------------------------------------------
+Per-CPU variables  	A		Duplicate a data structure among the CPUs
+--------------------------------------------------------------------------------
+Atomic operation  	AC		Atomic read-modify-write instruction to a counter
+--------------------------------------------------------------------------------
+Memory barrier 	 	L/A		Avoid instruction reordering
+--------------------------------------------------------------------------------
+Spin lock 	 		A		Lock with busy wait
+--------------------------------------------------------------------------------
+Semaphore 	 		A		Lock with blocking wait (sleep)
+--------------------------------------------------------------------------------
+Seqlocks 	 		A		Lock based on an access counter
+
+--------------------------------------------------------------------------------
+Local interrupt 
+disabling 			S/L		Forbid interrupt handling on a single CPU 
+--------------------------------------------------------------------------------
+Local softirq 
+disabling 			S/L		Forbid deferrable function handling on a single CPU 
+--------------------------------------------------------------------------------
+Read-copy-update			Lock-free access to shared data structures through 
+(RCU) 	 			A		pointers  
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+Per-CPU Variables
+--------------------------------------------------------------------------------
+Per-CPU variable is an array of data structures, one element per each CPU in the
+system.
+
+A CPU should not access the elements of the array corresponding to the other
+CPUs.
+
+# When to use per cpu variable:
+Basically, when it makes sense to logically split the data across the CPUs of
+the system.
+
+# Aligned to line of hardware cache:
+The elements of the per-CPU array are aligned in main memory so that each data
+structure falls on a different line of the hardware cache
+
+# Protects only from other CPU's
+1) While per-CPU variables provide protection against concurrent accesses from
+several CPUs.
+2) They do not provide protection against accesses from asynchronous functions
+(interrupt handlers and deferrable functions). In these cases, additional
+synchronization primitives are required.
+3) As a general rule kernel control path should access a per-CPU variable with
+kernel preemption disabled.
+
+per-CPU variables are prone to race conditions caused by kernel preemption, both
+in uniprocessor and multiprocessor systems.
+
+if a kernel control path gets the address of its local copy of a per-CPU
+variable, and then it is preempted and (kernel control path)moved to another
+CPU: the address still refers to the element of the previous CPU.
+
+DEFINE_PER_CPU(type, name)
+per_cpu(name, cpu)
+_ _get_cpu_var(name)
+get_cpu_var(name)
+put_cpu_var(name)	
+alloc_percpu(type)
+free_percpu(pointer)
+per_cpu_ptr(pointer, cpu)
+
+--------------------------------------------------------------------------------
+Atomic Operations
+--------------------------------------------------------------------------------
+As in x86 arch ISA has atomic instructions inc and dec, which read data from
+memory, update it and write the updated value back to memory are atomic, if no
+other processor has taken the memory bus after the read and before write.
+
+Memory bus stealing never happens in a uniprocessor systems.
+
+As in ARM ISA do not have atomic instructions, so all atomic api's like 
+atomic_read, _write, _set, _read, _get, _inc, _dec are performed with spinlocks
+
+Several assembly language instructions are of type “read-modify-write”—that is,
+they access a memory location twice, 
+1) the first time to read the old value and 
+2) the second time to write a new value
+
+Scenario: 2 Kernel control paths on two CPU's using nonatomic 
+-------------------------------------------------------------
+1) Suppose that two kernel control paths running on two CPUs try to 
+“read-modify-write” the same memory location at the same time by executing
+nonatomic operations.
+2) At first, both CPUs try to read the same location, but the memory arbiter
+steps in to grant access to one of them and delay the other.
+3) when the first read operation has completed, the delayed CPU reads exactly
+the same (old) value from the memory location.
+4) Both CPUs then try to write the same (new) value to the memory location
+again, the bus memory access is serialized by the memory arbiter, and eventually
+both write operations succeed.
+5) the global result is incorrect because both CPUs write the same (new) value.
+Thus, the two interleaving “read-modify-write” operations act as a single one.
+
+How to prevent?
+---------------
+The easiest way to prevent race conditions due to “read-modify-write”
+instructions is by ensuring that such operations are atomic at the chip level.
+
+In x86 ISA:
+-----------
+# Assembly language instructions that make zero or one aligned memory access are
+atomic.
+
+A data item is aligned in memory when its address is a multiple of its size in
+bytes. For instance:
+# the address of an aligned short integer must be a multiple of two.
+# while the address of an aligned integer must be a multiple of four.
+# Generally speaking, an unaligned memory access is not atomic.
+
+# Uniprocessor: Bus stealing never happens
+inc and dec instructions:
+Read-modify-write assembly language instructions (such as inc or dec ) that read
+data from memory, update it, and write the updated value back to memory are
+atomic if no other processor has taken the memory bus after the read and before
+the write. Memory bus stealing never happens in a uniprocessor system.
+
+# Multiprocessor:
+Read-modify-write assembly language instructions whose opcode is prefixed by the
+lock byte ( 0xf0 ) are atomic even on a multiprocessor system.
+
+When the control unit detects the prefix, it “locks” the memory bus until the
+instruction is finished. Therefore, other processors cannot access the memory
+location while the locked instruction is being executed.
+
+# Generic Note:
+Assembly language instructions whose opcode is prefixed by a rep byte ( 0xf2,
+0xf3 , which forces the control unit to repeat the same instruction
+several times) are not atomic. The control unit checks for pending
+interrupts before executing a new iteration.
+
+# How do you guarantee that a++ and a+=1 assemble to inc instruction?
+---------------------------------------------------------------------
+When you write C code, you cannot guarantee that the compiler will use an atomic
+instruction for an operation like a=a+1 or even for a++. 
+
+# Uniprocessor
+Thus, the Linux kernel provides a special atomic_t type and some
+special functions and macros that act on atomic_t variables and
+are implemented as single, atomic assembly language instructions. 
+
+# Multiprocessor
+On multiprocessor systems, each such instruction is prefixed by a lock byte.
+
+--------------------------------------------------------------------------------
+Optimization [barrier()] and Memory Barriers[rmb,wmb,dsb]
+--------------------------------------------------------------------------------
+With optimizing compilers: 
+--------------------------
+1) you should never take for granted that instructions will be executed in
+program order.
+2) compiler might reorder the assembly language instructions in such a way to
+optimize how registers are used.
+3) Modern CPU's usually execute several instructions in parallel and might
+reorder memory accesses
+4) Instructions may be reordered to speed up the execution
+
+Reordering of instructions effects Synchronization:
+---------------------------------------------------
+1) reordering of instructions must be avoided
+2) Things would quickly become hairy if an instruction placed after a
+synchronization primitive is executed before the synchronization primitive
+itself.
+3) Therefore all synchronization primitives act as optimization and memory
+barriers.
+
+barrier():  Definition
+----------
+An optimization barrier primitive ensures that the assembly language
+instructions placed before the primitive are not mixed by the compiler with
+assembly language instructions placed after the primitive.
+
+In Linux the barrier() macro acts as an optimization barrier. 
+barrier() expands into asm volatile(""::: "memory").
+
+# The asm instruction tells the compiler to insert an assembly language
+fragment
+# The volatile keyword forbids the compiler to reshuffle the asm instruction
+with the other instructions of the program.
+# The memory keyword forces the compiler to assume that all memory locations in
+RAM have been changed by the assembly language instruction; therefore, the
+compiler cannot optimize the code by using the values of memory locations
+stored in CPU registers before the asm instruction.
+
+optimization barrier() cannot gaurantee:
+----------------------------------------
+Notice that the optimization barrier does not ensure that the executions of the
+assembly language instructions are not mixed by the CPU (feature of core, like
+speculative read, multi processor execution) this is a job for a memory barrier
+
+Memory Barrier: Definition
+---------------
+A memory barrier primitive ensures that the operations placed before the
+primitive are finished before starting the operations placed after the
+primitive. 
+
+x86:
+----
+In the 80X86 processors, the following kinds of assembly language instructions
+are said to be “serializing” because they act as memory barriers:
+1) All instructions that operate on I/O ports
+2) All instructions prefixed by the lock byte
+3) All instructions that write into 
+control registers, 
+system registers, or 
+debug registers 
+(for instance, cli and sti , which change the status of the IF flag in the
+eflags register)
+4) The lfence , sfence , and mfence assembly language instructions, 
+implement read memory barriers, write memory barriers, and read-write memory
+barriers, respectively.
+5) A few special assembly language instructions; among them, the iret
+instruction that terminates an interrupt or exception handler.
+
+Linux
+-----
+Linux uses a few memory barrier primitives. These primitives act also as
+optimization barriers. because we must make sure the compiler does not move the
+assembly language instructions around the barrier.
+
+"Read Memory barriers” act only on instructions that read from memory. 
+“write memory barriers” act only on instructions that write to memory. 
+
+Memory barriers can be useful in both multiprocessor and uniprocessor systems.
+-------------------------------------------------
+Macro		Description
+-------------------------------------------------
+mb() 		Memory barrier for MP and UP
+rmb() 		Read memory barrier for MP and UP
+wmb() 		Write memory barrier for MP and UP
+smp_mb() 	Memory barrier for MP only
+smp_rmb() 	Read memory barrier for MP only
+smp_wmb() 	Write memory barrier for MP only
+-------------------------------------------------
+
+Multiprocessors:
+----------------
+The smp_xxx() primitives are used whenever the memory barrier should prevent
+race conditions that might occur only in multiprocessor systems. in uniprocessor
+systems, they do nothing.
+
+The implementations of the memory barrier primitives depend on the architecture
+of the system.
+
+x86:
+----
+rmb() expands to : asm volatile("lfence"), if ISA supports else
+				 : asm volatile("lock;addl $0,0(%%esp)":::"memory")
+
+The lock; addl $0,0(%%esp) assembly language instruction adds zero to the memory
+location on top of the stack; the instruction is useless by itself, but the lock
+prefix makes the instruction a memory barrier for the CPU.
+
+Notice that in multiprocessor systems, all atomic operations described in the
+earlier a section “Atomic Operations” act as memory barriers because they use
+the lock byte.
+
+--------------------------------------------------------------------------------
+Spinlock [1 : unlock, 0 or negative numbers lock]
+--------------------------------------------------------------------------------
+# Spinlocks are a special kind of lock designed to work in a multiprocessor
+environment
+
+# if the kernel control path finds the lock “closed” by a kernel control path
+running on another CPU, it “spins” around, repeatedly executing a tight
+instruction loop, until the lock is released.
+
+# As a general rule, kernel preemption is disabled in every critical region
+protected by spin locks.
+
+# Uniprocessor
+--------------
+# In the case of a uniprocessor system, the locks themselves are useless, and
+the spin lock primitives just disable or enable the kernel preemption
+
+# Kernel preemption is still enabled during the busy wait phase, thus a process
+waiting for a spin lock to be released could be replaced by a higher priority
+process.
+
+spinlock_t structure
+--------------------
+slock: 1 unlocked state
+	 : every negative value and 0 denotes locked state
+
+break_lock: Flag signaling that a process is busy waiting for a lock
+--------------------------------------------------------------------------------
+Macro 				Description
+--------------------------------------------------------------------------------
+spin_lock_init() 	Set the spin lock to 1 (unlocked)
+spin_lock() 		Cycle until spin lock becomes 1 (unlocked), then set it to 0
+					(locked)
+spin_unlock() 		Set the spin lock to 1 (unlocked)
+spin_unlock_wait() 	Wait until the spin lock becomes 1 (unlocked)
+spin_is_locked() 	Return 0 if the spin lock is set to 1 (unlocked); 
+					1 otherwise
+spin_trylock() 		Set the spin lock to 0 (locked), 
+					and return 1 if the previous value of the lock was 1; 
+					0 otherwise
+--------------------------------------------------------------------------------
+
+The spin_lock macro with kernel preemption
+------------------------------------------
+
+Following code for preemptive SMP kernel:
+
+1) Invokes preempt_disable() to disable kernel preemption
+
+2) Invokes the _raw_spin_trylock() function, which does an atomic test-and-set
+operation on the spin lock’s slock field; 
+
+x86:
+----
+movb $0, %al
+xchgb %al, slp->slock	@since it byte, all byte aligned or atomic in x86
+
+3) oldvalue of slock will be 1, if lock is available, the same will be returned.
+if 1 is returned lock acquired else, 0 otherwise.
+
+4) if lock busy: 
+a) thus the macro must cycle until the spin lock is released by a
+kernel control path running on some other CPU.
+
+b) Invokes preempt_enable() to undo the increase of the preemption counter done
+in step 1.
+
+c) Another process can now replace this process while it waits for the spinlock
+
+d) If the break_lock field is equal to zero, sets it to one. 
+
+e) By checking this field, the process owning the lock and running on another
+CPU can learn whether there are other processes waiting for the lock. If a
+process holds a spin lock for a longtime, it may decide to release it
+prematurely to allow another process waiting for the same spin lock to progress.
+
+f) Executes the wait cycle:
+
+while (spin_is_locked(slp) && slp->break_lock)
+	cpu_relax();
+
+g) Jumps back to step 1 to try once more to get the spin lock.
+
+Arm:
+----
+TODO
+
+The spin_lock macro without kernel preemption
+---------------------------------------------
+spin_lock macro yields a assembly language fragment that is essentially
+equivalent to the following tight busy wait:
+
+1: lock; decb slp->slock
+jns 3f
+2: pause
+cmpb $0,slp->slock
+jle 2b
+jmp 1b
+3:
+
+1) The decb assembly language instruction decreases the spin lock value
+2) The instruction is atomic because it is prefixed by the lock byte. 
+3) A test is then performed on the sign flag. 
+4) If it is clear, it means that the spin lock was set to 1 normal execution
+continues at label 3
+5) Otherwise, the tight loop at label 2 is executed until the spin lock assumes
+a positive value.
+6) Then execution restarts from label 1 , since it is unsafe to proceed without
+checking whether another processor has grabbed the lock.
+
+The spin_unlock macro
+---------------------
+1) The spin_unlock macro releases a previously acquired spin lock
+2) assembly language instruction:
+movb $1, slp->slock
+3) invokes preempt_enable() (if kernel preemption is enabled)
+4) Notice that the lock byte is not used because write-only accesses in memory
+are always atomically executed by the current 80×86 microprocessors.
+
+--------------------------------------------------------------------------------
+Read/Write Spin Locks: Many reader and Single writer both at same priority
+--------------------------------------------------------------------------------
+1) Read/write spin locks have been introduced to increase the amount of
+concurrency inside the kernel
+
+2) They allow several kernel control paths to simultaneously read the same data
+structure, as long as no kernel control path modifies it.
+Allows Either multiple readers or single writer
+
+3) If a kernel control path wishes to write to the structure, it must acquire
+the write version of the read/write lock, which grants exclusive access to the
+resource.
+
+Data Structure:
+4) Each read/write spin lock is a rwlock_t structure; 
+-> lock field:
+is 32-bit field that encodes two distinct pieces of information
+-> break_lock:
+
+a) bits[23:0]: 
+-> A 24-bit counter denoting the number of kernel control paths currently
+reading the protected data structure. 
+-> The two’s complement value of this counter is stored in bits 0–23 of the
+field.
+
+b) bit[24]:
+An unlock flag that is set when no kernel control path is reading or writing,
+and clear otherwise. 
+
+Idle: lock field stores the number 0x01000000(unlock flag is set)
+Write: 0x00000000: Unlock flag is clear and no readers
+Read: any number in the sequence 
+0x00ffffff - one reader
+0x00fffffe - two readers
+Unlock flag clear and 2's complement on 24 bits of the number of readers
+
+Priority between Read and Write locks:
+--------------------------------------
+When using read/write spin locks, requests issued by kernel control paths to
+perform a read_lock or a write_lock operation have the same priority:
+-> readers must wait until the writer has finished and, 
+-> similarly, a writer must wait until all readers have finished.
+
+--------------------------------------------------------------------------------
+Seqlock: Many reader and Single write, but writers are priority
+--------------------------------------------------------------------------------
+Similar to read/write locks, except that they give a much higher priority to
+writers: in fact a writer is allowed to proceed even when readers are active.
+
+Good part:
+The good part of this strategy is that a writer never waits. But only one writer
+is allowed in critical section
+
+Bad part:
+reader may sometimes be forced to read the same data several times until it gets
+a valid copy.
+
+Data structure:
+---------------
+seqlock_t consists of
+->  lock field of type spinlock_t
+-> seqeunce counter
+
+Each reader must read this sequence counter twice, before and after reading the
+data, and check whether the two values coincide. 
+
+A new writer has become active and has increased the sequence counter, thus
+implicitly telling the reader that the data just read is not valid.
+
+Writers 
+-> acquire lock by write_seqlock(): increases the sequence counter by one
+-> release seqlock by invoking write_sequnlock(). increases the sequence counter
+once more, then releases the spin lock. 
+
+This ensures that when the writer is in the middle of writing, the counter is
+odd, and that when no writer is altering data, the counter is even.
+
+Usage: ' System time handling '
+------------------------------
+A typical usage of seqlocks in Linux 2.6 consists of protecting some data
+structures related to the system time handling.
+
+--------------------------------------------------------------------------------
+Read-Copy Update (RCU): Many readers and Many writers
+--------------------------------------------------------------------------------
+-> Improvement over seqlock
+-> RCU allows many readers and many writers to proceed concurrently
+-> RCU is lock free, uses no lock or counter
+-> Designed to protect data structures that are mostly accessed for reading by
+several CPU's
+-> has a high overhead due to cache line snooping and invalidation
+
+How does RCU obtain the surprising result of synchronizing several CPUs without
+shared data structures?
+
+1. Only data structures that are dynamically allocated and referenced by means
+of pointers can be protected by RCU.
+
+2. No kernel control path can sleep inside a critical region protected by RCU.
+
+Read: rcu_read_lock() and rcu_read_unlock():
+--------------------------------------------
+-> When a kernel control path wants to read it executes the rcu_read_lock()
+macro, which is equivalent to preempt_disable().
+-> Next the reader dereferences the pointer to the data structure and starts
+reading it. 
+-> the end of the critical region is marked by the rcu_read_unlock() macro,
+which is equivalent to preempt_enable().
+
+Write: call_rcu()
+-----------------
+-> When a writer wants to update the data structure, it dereferences the pointer
+and makes a copy of the whole data structure.
+
+-> Next, the writer modifies the copy. Once finished, the writer changes the
+pointer to the data structure so as to make it point to the updated copy.
+
+-> changing the value of the pointer is an atomic operation, each reader or
+writer sees either the old copy or the new one: no corruption in the data
+structure may occur.
+
+-> However, a memory barrier is required to ensure that the updated pointer is
+seen by the other CPUs only after the data structure has been modified.
+
+Deleting Old copy
+-----------------
+-> the old copy of the data structure cannot be freed right away when the writer
+updates the pointer.
+
+-> The old copy can be freed only after all readers on the CPUs have executed
+the rcu_read_unlock() macro.
+
+-> The call_rcu() function is invoked by the writer to get rid of the old copy
+of the data structure. 
+Parameters: -> rcu_head descriptor and call back function
+
+callback function invoked when all CPUs have gone through a quiescent state.
+Once executed, the callback function usually frees the old copy of the data
+structure.
+
+--------------------------------------------------------------------------------
+Semaphore
+--------------------------------------------------------------------------------
+Linux offers two kinds of semaphores:
+1) Kernel semaphores: used by kernel control paths
+2) System V IPC semaphores: used by User Mode processes
+
+Kernel Semaphore:
+-----------------
+# A kernel semaphore is similar to a spin lock, in that it doesn’t allow a
+kernel control path to proceed unless the lock is open.
+
+# if kernel control path tries to acquire a busy resource protected by a kernel
+semaphore, the corresponding process is suspended.
+
+# process becomes runnable again when the resource is released.
+
+# kernel semaphores can be acquired only by functions that are allowed to sleep
+
+# interrupt handlers and deferrable functions cannot use them
+
+Data structure:
+--------------
+struct semaphore {
+/* 1. count > 0, the resource is free
+ * 2. count == 0, the semaphore is busy but no other process is waiting	
+ * 3. count < 0, resource is unavailable and at least one process is waiting for
+ * it
+ */
+	atomic_t count;
+
+/* 1. Stores the address of a wait queue list that includes all sleeping
+ * processes that are currently waiting for the resource.
+ * 2. if count is greater than or equal to 0, the wait queue is empty.
+ */
+	wait;
+
+/* flag that indicates whether some processes are sleeping on the semaphore */
+	sleepers;
+};
+
+Semaphore as mutex: Count = 1; only one process
+-------------------
+1) The init_MUTEX() and init_MUTEX_LOCKED() functions may be used to initialize a
+semaphore for exclusive access: 
+# can be set the count field to 1: for free resource with exclusive access)
+
+# set to 0 (busy resource with exclusive access currently granted to the process
+that initializes the semaphore)
+
+Semaphore: count = n; n process
+----------
+# semaphore could also be initialized with an arbitrary positive value n for
+count.
+# In this case, at most n processes are allowed to concurrently access the
+resource.
+
+Getting and releasing semaphores:
+---------------------------------
+in following functions up() and down() test and increment/decrement must be
+performed atomically, these functions uses spinlock_irq_save functions.
+
+up(): Release lock
+1. this function increases the count field of the *sem semaphore
+2. then it checks whether its value is greater than 0. 
+3. If count is greater than 0, there was no process sleeping in the wait queue
+4. otherwise one sleeping process is woken up.
+
+down(): acquire lock
+1. function decreases the count field of the *sem semaphore
+2. and then checks whether its value is negative.
+3. count is greater than or equal to 0, the current process acquires the
+resource and the execution continues normally.
+4. count is negative, and the current process must be suspended.
+5. __down() function changes the state of the current process from TASK_RUNNING
+to TASK_UNINTERRUPTIBLE , and it puts the process in the semaphore waitqueue.
+
+x86 implementation:
+-------------------
+up(): 
+function is essentially equivalent to the following assembly language fragment:
+
+movl $sem->count,%ecx
+lock; incl (%ecx)
+jg 1f
+lea %ecx,%eax
+pushl %edx
+pushl %ecx
+call __up
+popl %ecx
+popl %edx
+1:
+
+_ _up() is the following C function:
+-------------------------------------
+__attribute__((regparm(3))) void __up(struct semaphore *sem)
+{
+wake_up(&sem->wait);
+}
+
+The increment of count and the setting of the flag tested by the following jump
+instruction must be atomically executed, or else another kernel control path
+could concurrently access the field value, with disastrous results. 
+
+If count is greater than 0, there was no process sleeping in the waitqueue, so
+nothing has to be done.
+
+Otherwise, the _ _up() function is invoked so that one sleeping process is woken
+up. Notice that _ _up() receives its parameter from the eax register.
+--------------------------------------------------------------------------------
+down(): alp program
+
+down:
+movl $sem->count,%ecx
+lock; decl (%ecx);
+jns 1f
+lea %ecx, %eax
+pushl %edx
+pushl %ecx
+call __down
+popl %ecx
+popl %edx
+1:
+
+__attribute__((regparm(3))) void __down(struct semaphore * sem)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	unsigned long flags;
+
+	current->state = TASK_UNINTERRUPTIBLE;
+	spin_lock_irqsave(&sem->wait.lock, flags);
+	add_wait_queue_exclusive_locked(&sem->wait, &wait);
+	sem->sleepers++;
+
+	for (;;) {
+		if (!atomic_add_negative(sem->sleepers-1, &sem->count)) {
+		sem->sleepers = 0;
+		break;
+	}
+	sem->sleepers = 1;
+	spin_unlock_irqrestore(&sem->wait.lock, flags);
+	schedule();
+	spin_lock_irqsave(&sem->wait.lock, flags);
+	current->state = TASK_UNINTERRUPTIBLE;
+	}
+	remove_wait_queue_locked(&sem->wait, &wait);
+	wake_up_locked(&sem->wait);
+	spin_unlock_irqrestore(&sem->wait.lock, flags);
+	current->state = TASK_RUNNING;
+}
+
+# down() function decreases the count field of the *sem semaphore, and then
+checks whether its value is negative
+
+Again, the decrement and the test must be atomically executed. 
+
+If count is greater than or equal to 0. the current process acquires the
+resource and the execution continues normally.
+
+Otherwise, count is negative, and the current process must be suspended. The
+contents of some registers are saved on the stack, and then _ _down() is
+invoked.
+
+Essentially, the __down() function changes the state of the current process
+from TASK_RUNNING to TASK_UNINTERRUPTIBLE.
+--------------------------------------------------------------------------------
+Read/Write Semaphores
+--------------------------------------------------------------------------------
+-> Read/write semaphores improve the amount of concurrency inside the kernel and
+improve overall system performance.
+
+-> Many kernel control paths may concurrently acquire a read/write semaphore for
+reading
+
+-> the semaphore can be acquired for writing only if no other kernel control
+path is holding it for either read or write access
+
+-> The kernel handles all processes waiting for a read/write semaphore in strict
+FIFO order.
+
+-> Each reader or writer that finds the semaphore closed is inserted in the last
+position of a semaphore’s wait queue list.
+
+-> When the semaphore is released, the process in the first position of the wait
+queue list are checked.
+
+-> The first process is Writer, the other processes in the wait queue continue
+to sleep.
+
+-> The first process is reader, all readers at the start of the queue, up to the
+first writer, are also woken up and get the lock.
+
+-> readers that have been queued after a writer continue to sleep.
+
+structure rw_semaphore {
+
+	/* Stores two 16-bit counters. The counter in the most significant word
+	 * encodes in two’s complement form the sum of the number of nonwaiting
+	 * writers (either 0 or 1) and the number of waiting kernel control paths.
+	 * The counter in the less significant word encodes the total number of
+	 * nonwaiting readers and writers
+	 */
+	field count;
+
+	/* Points to a list of waiting processes. Each element in this list is a
+	 * rwsem_waiter structure, including a pointer to the descriptor of the
+	 * sleeping process and a flag indicating whether the process wants the
+	 * semaphore for reading or for writing.
+	 */
+	wait_list
+
+	/* A spin lock used to protect the wait queue list and the rw_semaphore
+	 * structure itself.
+	 */
+	wait_lock
+}
+
+init_rwsem(), down_read(), up_read(), down_write(), up_write(),
+
+/* following do not block the process if the semaphore is busy */
+down_read_trylock(), down_write_trylock(), 
+
+/* function atomically transforms a write lock into a read lock	*/
+downgrade_write() 
+
+--------------------------------------------------------------------------------
+Completions
+--------------------------------------------------------------------------------
+-> Similar to semaphore
+
+-> Complete()
+--> corresponding to up()
+--> argument: address of a completion data structure
+--> invokes spin_lock_irqsave() on the spin lock of the completion’s wait queue
+--> increases the done field
+--> wakes up the exclusive process sleeping in the wait wait queue
+--> finally invokes spin_unlock_irqrestore()
+
+-> wait_for_completion()
+--> corresponding to down()	
+--> argument: address of a completion data structure
+--> checks the value of the done flag. 
+--> If it is greater than zero, wait_for_completion() terminates, because
+complete() has already been executed on another CPU
+--> Otherwise, the function adds current to the tail of the wait queue as an
+exclusive process and puts current to sleep in the TASK_UNINTERRUPTIBLE state.
+--> Once woken up, the function removes current from the wait queue
+--> Then, the function checks the value of the done flag:
+--> if it is equal to zero the function terminates, otherwise, the current
+process is suspended again.
+--> wait_for_completion() makes use of the spin lock in the completion’s wait
+queue.
+-------------------------------------------
+Difference between Semaphore and Completion
+-------------------------------------------
+The real difference between completions and semaphores is how the spin lock
+included in the wait queue is used:
+-> In completions, the spin lock is used to ensure that complete() and
+wait_for_completion() cannot execute concurrently.
+-> In semaphores, the spin lock is used to avoid letting concurrent down()’s
+functions mess up the semaphore data structure.
+
+--------------------------------------------------------------------------------
+Local Interrupt Disabling
+--------------------------------------------------------------------------------
+
+--> Used when Data is shared between Kernel Control path and IRQ handler
+
+# On Multiprocessor
+-------------------
+--> local interrupt disabling does not protect against concurrent accesses to
+data structures by interrupt handlers running on other CPUs.
+
+--> so in multiprocessor systems, local interrupt disabling is often coupled
+with spin locks
+
+Macros:
+-------
+-> local_irq_disable()
+Uses assembly language instruction, to disables interrupts on the local CPU
+x86: CLI clear "if" flag of eflags control register
+ARM: CPSID / msr <change psr>
+
+-> local_irq_enable()
+Uses assembly language instruction, to enables interrupts on the local CPU
+x86: STI set "if" flag of eflags control register
+ARM: CPSIE / msr <change psr>
+
+-> irqs_disabled() macro:
+--> yields the value one if the IF flag of the eflags register is clear
+--> yields the value zero if the flag is set
+
+Interrupts can execute in nested fashion, so the kernel does not necessarily
+know what the IF flag was before the current control path executed. In these
+cases, the control path must save the old setting of the flag and restore that
+setting at the end.
+
+Saving and restoring the eflags content is achieved by means of the
+local_irq_save and local_irq_restore macros.
+
+The local_irq_save macro copies the content of the eflags register into a local
+variable. the IF flag is then cleared by a cli assembly language instruction. 
+
+At the end of the critical region, the macro local_irq_restore restores the
+original content of eflags.
+--------------------------------------------------------------------------------
+Disabling and Enabling Deferrable Functions
+--------------------------------------------------------------------------------
+-> deferrable functions can be executed at unpredictable times, essentially, on
+termination of hardware interrupt handlers.
+
+-> data structures accessed by deferrable functions must be protected against
+race conditions.
+
+-> A trivial way to forbid deferrable functions execution on a CPU is to disable
+interrupts on that CPU. Because no interrupt handler can be activated, softirq
+actions cannot be started asynchronously.
+
+-> Local deferrable functions can be enabled or disabled on the local CPU by
+acting on the softirq counter stored in the preempt_count field of the current
+’s thread_info descriptor.
+
+-> do_softirq() function never executes the softirqs if the softirq counter is
+positive.
+
+-> As tasklets are implemented on top of softirqs, so setting this counter to a
+positive value disables the execution of all deferrable functions on a given
+CPU, not just softirqs.
+
+-> local_bh_disable macro adds one to the softirq counter of the local CPU
+
+-> local_bh_enable() function subtracts one from it
+
+-> As it is a counter the kernel can thus use several nested invocations of
+local_bh_disable. 
+
+-> Deferrable functions will be enabled again only by the local_bh_enable macro
+matching the first local_bh_disable invocation.
+--------------------------------------------------------------------------------
+Choosing Among Spin Locks, Semaphores, and Interrupt Disabling
+--------------------------------------------------------------------------------
+-> choosing the synchronization primitives depends on what kinds of kernel
+control paths access the data structure.
+
+-> Remember that whenever a kernel control path acquires 
+# a spin lock 
+# a read/write lock
+# a seqlock, or 
+# a RCU “read lock” 
+which disables the local interrupts, or disables the local softirqs, kernel
+preemption is automatically disabled.
+	
+------------------------------------------------------------------
+Kernel control paths |	UP protection 	|	MP further protection
+accessing 			 |					|
+the data structure 	 |					|
+------------------------------------------------------------------
+					 |					|	
+Exceptions 			 |	Semaphore 		|	None
+------------------------------------------------------------------
+Interrupts 			 |	Local interrupt |	Spin lock
+					 |	disabling 		|
+------------------------------------------------------------------
+Deferrable functions |	None 			|	None or spin lock
+------------------------------------------------------------------
+Exceptions+Interrupts| Local interrupt  |	Spin lock
+					 |	disabling 		|
+------------------------------------------------------------------
+Exceptions+Deferrable| Local softirq 	|	Spin lock
+functions 			 |	disabling 		|
+------------------------------------------------------------------
+Interrupts+Deferrable| Local softirq 	|	Spin lock
+functions 			 |	disabling 		|
+------------------------------------------------------------------
+Exceptions +		 |	Local interrupt |	Spin lock 
+Interrupts +		 |	disabling 		| 
+Deferrable functions |					|
+------------------------------------------------------------------
+
+--------------------------------------------------------------------------------						
+Protecting a data structure accessed by exceptions
+--------------------------------------------------------------------------------						
+-> When a data structure is accessed only by exception handlers
+
+-> The most common exceptions that give rise to synchronization problems are the
+system call service routines.
+
+# Usecase
+---------
+-> a data structure accessed only by an exception usually represents a resource
+that can be assigned to one or more processes.
+
+# Avoiding
+----------
+-> Race conditions are avoided through semaphores
+
+-> because these primitives allow the process to sleep until the resource
+becomes available
+
+-> Kernel preemption does not create problems either
+
+-> If a process that owns a semaphore is preempted, a new process running on the
+same CPU could try to get the semaphore. When this occurs, the new process is
+put to sleep, and eventually the old process will release the semaphore.
+
+-> The only case in which kernel preemption must be explicitly disabled is when
+accessing per-CPU variables.
+--------------------------------------------------------------------------------
+Protecting a data structure accessed by interrupts
+--------------------------------------------------------------------------------
+# With in a single interrupt handler
+-> a data structure is accessed by only the “top half” of an interrupt handler.
+each interrupt handler is serialized with respect to itself—that is, it cannot
+execute more than once concurrently.
+-> accessing the data structure does not require synchronization primitives.
+
+# data structure is accessed by several interrupt handlers
+-> A handler may interrupt another handler
+-> different interrupt handlers may run concurrently in multiprocessor systems
+
+# Uniprocessor: Disable interrupt
+-> race conditions must be avoided by disabling interrupts in all critical
+regions of the interrupt handler.
+-> A semaphore can block the process,so it cannot be used in an interrupt
+handler.
+-> A spin lock, on the other hand, can freeze the system: if the handler
+accessing the data structure is interrupted, it cannot release the lock;
+therefore, the new interrupt handler keeps waiting on the tight loop of the spin
+lock.
+
+# Multiprocessor systems: local interrupt disable + spinlock
+-> Race conditions cannot be avoided by simply disabling local interrupts.
+-> interrupt handlers can still be executed on the other CPUs
+-> to prevent the race conditions is to disable local interrupts, so that other
+interrupt handlers running on the same CPU won’t interfere and to acquire a
+spin lock or a read/write spin lock that protects the data structure.
+--------------------------------------------------------------------------------
+Protecting a data structure accessed only by deferrable functions
+--------------------------------------------------------------------------------
+Deferrable functions: Tasklets and softirq's, They differ in degree of
+concurrency
+-> the same "softirq" may run concurrently on two or more CPUs.
+-> tasklets of the same kind cannot run concurrently. However, if the data
+structure is accessed by several kinds of tasklets, then it must be protected.
+
+# Uniprocessor system:
+-> no race condition may exist in uniprocessor systems
+-> This is because execution of deferrable functions is always serialized on a
+CPU. a deferrable function cannot be interrupted by another deferrable function
+-------------------------------------------------------------------
+Deferrable functions accessing the data structure 	Protection
+-------------------------------------------------------------------
+Softirqs 											Spin lock
+One tasklet 										None
+Many tasklets 										Spin lock
+-------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+Protecting a data structure accessed by exceptions and interrupts
+--------------------------------------------------------------------------------
+# uniprocessor systems: (Local irq disable)
+-> race condition prevention is quite simple, because interrupt handlers are not
+reentrant and cannot be interrupted by exceptions.
+-> As long as the kernel accesses the data structure with local interrupts
+disabled, the kernel cannot be interrupted when accessing the data structure.
+-> If the data structure is accessed by just one kind of interrupt handler, the
+interrupt handler can freely access the data structure without disabling local
+interrupts.
+
+# multiprocessor systems: (Local irq disable + spinlock)
+-> we have to take care of concurrent executions of exceptions and interrupts on
+other CPUs.
+-> Local interrupt disabling must be coupled with a spin lock, which forces the
+concurrent kernel control paths to wait until the handler accessing the data
+structure finishes its work.
+
+--------------------------------------------------------------------------------
+Protecting a data structure accessed by exceptions and deferrable functions
+--------------------------------------------------------------------------------
+# local interrupts disable + spinlock
+--------------------------------------
+A data structure accessed both by exception handlers and deferrable functions
+can be treated like a data structure accessed by exception and interrupt
+handlers.
+
+deferrable functions are essentially activated by interrupt occurrences, and no
+exception can be raised while a deferrable function is running.
+
+Coupling local interrupt disabling with a spin lock is therefore sufficient.
+
+# local bh disable + spinlock
+-----------------------------
+the exception handler can simply disable deferrable functions instead of local
+interrupts by using the local_bh_disable().
+
+Disabling only the deferrable functions is preferable to disabling interrupts,
+because interrupts continue to be serviced by the CPU. Execution of deferrable
+functions on each CPU is serialized, so no racecondition exists.
+
+# multiprocessor systems:
+spin locks are required to ensure that the data structure is accessed at any
+time by just one kernel control.
+--------------------------------------------------------------------------------
+Protecting a data structure accessed by interrupts and deferrable functions
+--------------------------------------------------------------------------------
+-> An interrupt might be raised while a deferrable function is running
+-> but no deferrable function can stop an interrupt handler
+
+# Uniprocessor: (disable local interrupts)
+---------------
+# deferrable function:
+----------------------
+-> race conditions must be avoided by disabling local interrupts during the
+deferrable function.
+
+# interrupt handler:
+--------------------
+-> interrupt handler can freely touch the data structure accessed by the
+deferrable function without disabling interrupts.
+-> provided that no other interrupt handler accesses that data structure
+
+# multiprocessor: (disable local interrupts + spinlock)
+-----------------
+-> a spin lock is always required to forbid concurrent accesses to the data
+structure on several CPUs.
+--------------------------------------------------------------------------------
+Protecting a data structure accessed by 
+exceptions, interrupts and deferrable functions
+--------------------------------------------------------------------------------
+-> disabling local interrupts and acquiring a spin lock is almost always
+necessary to avoid race conditions.
+
+-> there is no need to explicitly disable deferrable functions, because they are
+essentially activated when terminating the execution of interrupt handlers.
+
+
+
+

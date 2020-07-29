@@ -42,7 +42,7 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/proje
 # Generate uImage
 ## if uImage option is given then along with zImage, Image, uImage is also generated.
 ## load address of uImage, which is read by u-boot, this is required for 3.7+ multi platform support in kernel
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/linux uImage dtbs LOADADDR=0x80008000 -j16
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/linux uImage dtbs LOADADDR=0x80008000 -j12
 
 # compile modules
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KBUILD_OUTPUT=/home/vinai/projects/bbb/out/linux modules -j12

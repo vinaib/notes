@@ -29,15 +29,20 @@ readelf -p .rodata a.out # dump the content of rodata (in strings)
 
 -> size
 size -A a.out (sysv: very detailed format)
+size -Ax a.out/vmlinux  : values in hex	
 size -B a.out (berkley: short format, this is default if no option is given)
 
 -> objdump
 objdump -S a.out	#intermix source code with assembly
 objdump -D a.out    #dumps assembly code, includes all files
-objdump -h a.out	# dumps section headers
-objdump -x a.out    # dumps all headers
+objdump -hw a.out/vmlinux	# dumps all section headers
+objdump -x a.out    # dumps all headers and its contents
 objdump -d -j .rodata app	# disassemble only rodata segment
 objdump -d -j .text app     # disassemble only text segment
+
+-> hexdump
+hexdump -e '/4 "%0X\n"' kernel.img
+
 --------------------------------------------------------------------------------
 VI commands:
 --------------------------------------------------------------------------------
@@ -54,18 +59,18 @@ p to paste text
 
 Proc file system
 -----------------
-1) mount proc /proc -t proc
+1) mount -t proc proc /proc
 
 # check which filesystems running kernel support
 cat /proc/filesystems
 
 sysfs file system
 ----------------
-mount sysfs /sys -t sysfs
+mount -t sysfs sysfs /sys
 
 Debugfs
 -------
-mount none /sys/kernel/debug/ -t debugfs
+mount -t debugfs none /sys/kernel/debug/
 
 or create /etc/fstab or /etc/mtab and run mount -a
 ---------------------------------------------------

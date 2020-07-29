@@ -1,0 +1,31 @@
+--------------------------------------------------------------------------------
+Linker script
+--------------------------------------------------------------------------------
+The last step in compiling a program is to link all of the object files
+together, possibly also including some object files from system libraries. 
+
+A linker script is a file that tells the linker:
+-> which sections to include in the output file, 
+-> as well as which order to put them in, 
+-> what type of file is to be produced, and 
+-> what is to be the address of the first instruction. 
+
+Default linking by GCC for OS:
+------------------------------
+1) The default linker script used by GCC creates an ELF executable file.
+2) which includes startup code from the C library and 
+3) also includes information which tells the loader where the various sections 
+reside in memory. 
+4) The default linker script creates a file that can be loaded by the operating
+system kernel, but which cannot be executed on bare metal.
+
+For bare metal:
+---------------
+1# The linker must be configured to link the program so that the first
+instruction of the startup function is given the correct address in memory.
+
+2# This address depends on how the boot loader will load and execute the program. 
+
+3# On the Raspberry Pi 2 this address is 0x8000.
+
+4# On the Beaglebone black this address is TODO.

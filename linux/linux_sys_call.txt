@@ -1,0 +1,41 @@
+--------------------------------------------------------------------------------
+System calls
+--------------------------------------------------------------------------------
+1) System call makes programming easier by freeing users from studying low-level
+programming characteristics of hardware devices.
+
+2) It greatly increases system security, because the kernel can check the
+accuracy of the request at the interface level before attempting to satisfy it.
+
+3) These interfaces make programs more portable, because they can be compiled
+and executed correctly on every kernel that offers the same set of interfaces.
+
+API: Application programming interface
+--------------------------------------
+Function definition that specifies how to obtain a given service.
+
+System Call:
+------------
+explicit request to the kernel made via a software interrupt.
+
+arm system call entry:
+----------------------
+arm32:
+1) arch/arm/kernel/entry-common.S
+-> "NR_syscalls" is defined in this file
+
+-> filling syscall table
+syscall_table_start sys_call_table
+#include <calls-eabi.S>
+syscall_table_end sys_call_table
+
+-> sys_syscall: system call wrapper
+
+2) arch/arm/tools/syscall.tbl
+
+3) arch/arm/tools/Makefile
+Generates calls-eabi.S
+gen-y += $(gen)/calls-eabi.S
+$(gen)/calls-eabi.S: $(syscall) $(systbl) FORCE
+
+

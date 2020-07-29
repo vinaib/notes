@@ -1,12 +1,15 @@
 # linux head.S
-# it is arch dependent code, not dependent on SoC family. It is generic startup code for ARM processors
+# it is arch dependent code, not dependent on SoC family. It is generic startup
+  code for ARM processors.
 # file: arch/arm/kernel/head.S
 # head.S also invokes functions which are defined in other files
 # CPU specific init: icache, dcache init, exceptions, interrupt init
 # page table inits
 # init and prepare MMU and enable MMU to support virtual memory
 # calls start_kernel fuction of main.c
-# uncompression and relocation of linux kernel image is not responsibility of u-boot. It is the responsibiity of linux boot strap loader which is glued to linux kernel image
+# uncompression and relocation of linux kernel image is not responsibility of
+ u-boot. It is the responsibiity of linux boot strap loader which is glued to
+ linux kernel image
 # kernel startup entry point: normally called from decompressor code.
 # reuqirement for this entry point function:
 MMU=off, 
@@ -30,5 +33,6 @@ r8 = translation table base 1 (pfn if LPAE)
 r9 = cpuid
 r13 = virtual address for __enable_mmu -> turn_mmu_on
 
-# arch/arm/kernel/head-common.S calls c function start_kernel() defined in init/main.c which is arch independent code of linux kernel.
+# arch/arm/kernel/head-common.S calls c function start_kernel() defined in
+  init/main.c which is arch independent code of linux kernel
 

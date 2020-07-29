@@ -1,0 +1,127 @@
+1) kernel executes in the highest level (also called supervisor mode), where
+everything is allowed, whereas applications execute in the lowest level (the
+so-called user mode), where the processor regulates direct access to hardware
+and unauthorized access to memory. Usually referred to the execution modes as
+kernel space and user space.
+
+?????????????????????????????????????????????????????????????????????????????
+Q) How Processor regulates direct access to hardware and unauthorized access to
+memory from user space?
+
+To be Answered
+?????????????????????????????????????????????????????????????????????????????
+
+-> Unix transfers execution from user space to kernel space whenever 
+1) an application issues a system call or 
+2) is suspended by a hardware interrupt
+
+Q) When the kernel has satisfied the program’s request,it puts the program back in
+User Mode. How it puts back to user mode?
+TODO:
+Look out into return from excepion, exception return status, or exception return
+codes
+
+--------------------------------------------------------------------
+User space, Kernel Space, Process address space, Interrupt context
+--------------------------------------------------------------------
+Kernel code executing a system call is working in the context of a process, it
+operates on behalf of the calling process and is able to access data in the
+process’s address space.
+
+Code that handles interrupts, on the other hand, is asynchronous with respect to
+processes and is not related to any particular process.
+
+Reentrant:
+Linux kernel code, including driver code, must be reentrant, it must be capable
+of running in more than one context at the same time.
+
+Data structures must be carefully designed to keep multiple threads of execution
+separate, and the code must take care to access shared data in ways that prevent
+corruption of the data.
+
+-> most actions performed by the kernel are done on behalf of a specific process
+
+--------------------------------------------------------------------
+-> current pointer
+--------------------------------------------------------------------
+1) kernel code can refer to the current process by accessing the global item
+   current.
+2) yields a pointer to struct task_struct
+3) The current pointer refers to the process that is currently executing
+
+?????????????????????????????????????????????????????????????????????????????
+Q) in Multiprocessor, is current an array? will it be present for each core?
+   How SMP systems handles current? 
+
+  -> Accessing of current is architecture dependent. 
+  -> usually, hides a pointer to the task_struct structure on the kernel stack
+   Current.
+To be Answered
+?????????????????????????????????????????????????????????????????????????????
+
+--------------------------------------------------------------------------------
+Kernel stack for each process?
+--------------------------------------------------------------------------------
+Where it will be? is virtual address of kernel stack is same for all processes
+when ASLR is disabled?
+
+--------------------------------------------------------------------------------
+kernel preemption
+--------------------------------------------------------------------------------
+Another Definition of preemptive kernel:
+we could say that a kernel is preemptive if a process switch may occur while the
+replaced process is executing a kernel function, that is, while it runs in
+Kernel Mode.
+
+the main characteristic of a preemptive kernel is that a process running in
+Kernel Mode can be replaced by another process while in the middle of a kernel
+function.
+
+# this is per process varible stored in thread_info_struct:
+preempt_count = 0; Kernel is preemptive
+preempt_count = 1 or >1 : kernel is not preeptive.
+
+preempt_count field encodes three different counters, so it is greater than zero
+
+when any of the following cases occurs:
+1. The kernel is executing an interrupt service routine.
+2. The deferrable functions are disabled 
+3. The kernel preemption has been explicitly disabled
+
+preempt_enable() macro decrements preempt_count variable
+preempt_disable() macro increments preempt_count variable
+
+The above rules tell us that the kernel can be preempted only:
+1) when it is executing an exception handler (in particular a system call) and
+2) the kernel preemption has not been explicitly disabled
+3) Furthermore,the local CPU must have local interrupts enabled, otherwise
+kernel preemption is not performed.
+
+Example 1:
+1) While process A executes an exception handler, system call. 
+2) A higher priority process B becomes runnable. This could happen, for
+instance, if an IRQ occurs and the corresponding handler awakens process B.
+# Case preemptive: 
+## If the kernel is preemptive, forced process switch replaces process A with B
+## The exception handler is left unfinished and will be resumed only when the
+   scheduler selects again process A for execution.
+# Case non preemptive:
+## no process switch occurs until process A either finishes handling the
+   exception handler or voluntarily relinquishes the CPU.
+
+Example 2:
+consider a process that executes an exception handler and whose time quantum
+expires
+# Case preemptive: 
+the process may be replaced immediately
+
+# Case non preemptive:
+the process continues to run until it finishes handling the exception handler or
+voluntarily relinquishes the CPU.
+
+# Main Motivation of kernel preemptive
+--------------------------------------
+reduce the dispatch latency of the User Mode processes, that is, the delay
+between the time they become runnable and the time they actually begin running.
+
+

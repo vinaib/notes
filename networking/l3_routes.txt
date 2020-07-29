@@ -1,0 +1,18 @@
+# installing L3 routes
+
+# Node imx: local ipaddr: 192.168.1.19
+busybox route add -net 192.168.4.0 netmask 255.255.255.0 gw 192.168.1.5 dev eth0
+
+# Node beagle bone: local ipaddr: 192.168.4.30
+busybox route add -net 192.168.1.0 netmask 255.255.255.0 gw 192.168.4.5 dev eth0
+
+
+# Node Legion Local ipaddr: 192.168.1.5 and 192.168.4.5 on two different
+# interfaces
+
+# before installing L3 routes enable ip forwarding on all you VMs as below:
+# open file: "sudo vim /etc/sysctl/conf"
+
+and set the below value to 1,  uncomment out the line, after that reboot the VM
+
+net.ipv4.ip_forward=1

@@ -1,0 +1,57 @@
+Linaaro tool chain:
+-----------------
+# Path: 
+https://releases.linaro.org/components/toolchain/binaries/latest-5/
+https://www.linaro.org/downloads
+
+# From above link choose correct target: for beagle bone black, I choose:
+
+## arm-linux-gnueabihf: 32 bit armv7 cortex A,hard float, little endian
+
+## and other availabe are:
+   armv81-linux-gnueabif: 32bit armv8 cortex A, hard float, little endian
+
+## aarch64-linux-gnu: 64 bit armv8, cortex A, little endian
+
+# Download toolchain binaries for host PC arch x86_64 or 32 bit
+# extract the downloaded archive
+
+# configure env PATH
+export PATH=$PATH:/home/vinai/workspace/bbb/toolchain/gcc-linaro-7.4.1-2019.02-x86_64_arm-linux-gnueabihf/bin
+
+--------------------------------------------------------------------------------
+What is difference between OABI and EABI?
+--------------------------------------------------------------------------------
+source:
+-------
+https://linux-tips.com/t/what-is-the-difference-in-toolchains-named-arm-oabi-and-eabi/67
+
+OABI was the first Application Binary Interface for ARM architecture. OABI
+assumes machine has a FPU unit to accelerate floating point instructions so OABI
+toolchains generates codes to execute on FPU. But this is not the case for ARM
+cores. When FPU instruction tried to execute, it leads to a kernel exception and
+if you build Netwinder Floating Point Emulation or Fast Floating Point Emulation
+support in kernel, exception will be handle in kernel emulating related
+instruction.
+
+But as you may guess, this is a very slow operation because a context switch
+required for every instructions which needs FPU emulation.
+
+EABI is the new Embedded ABI for ARM systems. It solves the context switch
+problem with emulating FPU instructions in userspace. In order to use this
+feature, you can pass -mfloat-abi=soft to gcc for generating fully software
+emulated floating points.
+
+With this method programs runs 10x or more faster when compared to FPU emulation
+in kernel.
+
+New ARM cores also introduced a new Floating Point Unit named Vector Floating
+Points which uses a different instruction set. Even more, NEON introduced as an
+extension of VFP which allows for very efficient manipulation of matrices, and
+vector data in general. This leads to toolchains with hard floating point
+support named eabihf You can specify fpu in gcc with -mfpu=vfp or -mfpu=neon
+
+For the BeagleBoneBlack case, you can use eabihf toolchain for maximum
+performance but it is also possible to use eabi with soft floating point
+emulation in userspace provided by gcc.
+

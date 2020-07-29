@@ -1,0 +1,102 @@
+-> The simplest type of lock is a binary semaphore. It provides exclusive access
+to the locked data.
+
+-> Most locking designs block the execution of the thread requesting the lock
+until it is allowed to access the locked resource.
+
+-> With a spinlock: 
+# the thread simply waits ("spins") until the lock becomes available
+# This is efficient if threads are blocked for a short time
+# because it avoids the overhead of operating system process re-scheduling
+# It is inefficient if the lock is held for a long time
+
+-> Hardware support:
+# Locks typically require hardware support for efficient implementation.
+# This support usually takes the form of one or more atomic instructions
+## such as "test-and-set", 
+## "fetch-and-add" or 
+## "compare-and-swap". 
+# These instructions allow a single process to test if the lock is free,
+and if free, acquire the lock in a single atomic operation.
+
+-> Uniprocessor architectures:
+# with preemption disabled and
+# disable interrupts temporarily
+we can acheive synchronization on shared resource
+
+-> Multiprocessor architecture:
+Uniprocessor technique does not work for multiprocessor shared memory machines
+
+Concepts on Lock:
+-----------------
+-> Lock overhead: 
+# the extra resources for using locks, 
+## like the memory space allocated for locks, 
+## the CPU time to initialize and destroy locks, and 
+## the time for acquiring or releasing locks. 
+The more locks a program uses, the more overhead associated with the usage.
+
+-> Lock contention: 
+# this occurs whenever one process or thread attempts to acquire a lock held by
+another process or thread.
+# The more fine-grained the available locks, the less likely one process/thread
+will request a lock held by the other.
+For example: 
+1) locking a row rather than the entire table, or 
+2) locking a cell rather than the entire row.
+
+-> Deadlock: 
+# the situation when each of at least two tasks is waiting for a lock that the
+other task holds. Unless something is done, the two tasks will wait forever.
+
+There is a tradeoff between decreasing lock overhead and decreasing lock
+contention when choosing the number of locks in synchronization.
+
+Granularity:
+-----------
+The granularity is a measure of the amount of data the lock is protecting.
+-> Coarse granularity:
+: a small number of locks, each protecting a large segment of data
+
+# results in less lock overhead when a single process is accessing the protected
+data.
+# but worse performance when multiple processes are running concurrently
+# This is because of increased lock contention.
+# The more coarse the lock, the higher the likelihood that the lock will stop an
+unrelated process from proceeding.
+
+-> Fine granularity:
+: a larger number of locks, each protecting a fairly small amount of data
+# increases the overhead of the locks
+# reduces lock contention
+# Granular locking where each process must hold multiple locks from a common set
+of locks can create subtle lock dependencies.
+# This subtlety can increase the chance that a programmer will unknowingly
+introduce a deadlock
+
+Disadvantages
+-------------
+-> Contention
+# some threads/processes have to wait until a lock is released
+# If one of the threads holding a lock dies, stalls, blocks, or enters an
+infinite loop, other threads waiting for the lock may wait forever
+
+-> Overhead
+the use of locks adds overhead for each access to a resource, 
+
+-> Debugging
+bugs associated with locks are time dependent and can be very subtle and
+extremely hard to replicate, such as deadlocks.
+
+-> Instability
+ the optimal balance between lock overhead and lock contention can be unique to
+ the problem domain.
+
+-> Priority inversion: 
+# a low-priority thread/process holding a common lock can prevent high-priority
+threads/processes from proceeding.
+# Priority inheritance can be used to reduce priority-inversion duration. 
+# The priority ceiling protocol can be used on uniprocessor systems to minimize
+the worst-case priority-inversion duration, as well as prevent deadlock.
+
+
