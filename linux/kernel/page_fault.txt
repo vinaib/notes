@@ -1,0 +1,278 @@
+--------------------------------------------------------------------------------
+Linux Page Fault Exception Handler: is ISR routine
+--------------------------------------------------------------------------------
+PFE must distinguish: 
+- exceptions caused by programming errors 
+- exceptions caused by a reference to a page that legitimately belongs to the
+  process address space but simply hasn’t been allocated yet
+- memory region descriptors (vm_area_struct) allow the exception handler to
+  perform its job quite efficiently
+- compares the linear address that caused the Page Fault against the memory
+  regions of the current process.
+Flow Chart:
+					Does the address 
+					belong to the 
+					process address 
+					space?
+
+				YES 					NO
+
+
+Does the access type					Did the exception
+match the memory						occur in User Mode?
+region access rights?
+
+	YES  				NO 			YES  				NO
+
+Legal access:			send a SIGSEGV     			kill the process.
+allocate a 				new signal.
+iage frame.
+- things are a lot more complex than above flow chart
+- The identifiers 
+	vmalloc_fault,
+	good_area, 
+	bad_area, and 
+	no_context are labels appearing in do_page_fault( )
+
+
+- The first operation of do_page_fault( ) consists of reading the linear address
+  that caused the Page Fault.
+- When the exception occurs, 
+x86: 
+CPU control unit stores that value in the cr2 control register
+
+ARM: 
+CP15 registers provide details
+FAR: Fault addresss register: address of the memory access that caused an abort
+FSR: Fault Status Register: reason for the abort 
+  
+- The linear address is saved in the address local variable
+- saves the pointers to the process descriptor of current in the tsk local var
+
+First check by do_page_fault:
+- checks whether the faulty linear address belongs to the fourth gigabyte
+-- YES:
+If the exception was caused by the kernel trying to access a nonexisting page
+frame, a jump is made to the code at label vmalloc_fault, which takes care of
+faults that were likely caused by accessing a noncontiguous memory area in
+Kernel Mode.
+
+- Next, the handler checks whether the exception occurred while the kernel was
+executing some critical routine or running a kernel thread.
+(mm field of the process descriptor is always NULL for kernel threads)
+
+if (in_atomic( ) || !tsk->mm)
+	goto bad_area_nosemaphore;	
+
+in_atomic(): 
+macro yields the value one while either one of the following conditions holds:
+-- kernel was executing an interrupt handler or a deferrable function
+-- kernel was executing a critical region with kernel preemption disabled
+
+If the Page Fault did occur 
+in an interrupt handler, 
+in a deferrable function,
+in a critical region, or 
+in a kernel thread: 
+   
+do_page_fault( ) does not try to compare the linear address with the memory
+regions of current. Kernel threads never use linear addresses below TASK_SIZE.
+
+Similarly, interrupt handlers, deferrable functions, and code of critical
+regions should not use linear addresses below TASK_SIZE because this might block
+the current process.
+Q Why does it block the current process?
+
+- Page Fault did not occur in an interrupt handler, in a deferrable function, in
+a critical region, or in a kernel thread. Then the function must inspect the
+memory regions owned by the process to determine whether the faulty linear
+address is included in the process address space.
+			 
+May be User process:
+- do_page_fault() looks for a memory region containing the faulty linear address:
+
+vma = find_vma(tsk->mm, address);
+if (!vma)
+	goto bad_area;
+if (vma->vm_start <= address)
+	goto good_area;
+
+- If vma is NULL , there is no memory region ending after address and thus the
+faulty address is certainly bad.
+
+May be stack:
+- if function has determined that address is not included in any memory region;
+however, it must perform an additional check, because the faulty address may
+have been caused by a push or pusha instruction on the User Mode stack of the
+process.
+  
+Handling a Faulty Address Outside the Address Space:
+- If address does not belong to the process address space:
+
+-- If the error occurred in User Mode, it sends a SIGSEGV signal to current:
+- The force_sig_info() function makes sure that the process does not ignore or
+block the SIGSEGV signal, and sends the signal to the User Mode process while
+passing some additional information in the info local variable.
+
+-- If the exception occurred in Kernel Mode	there are still two alternatives:
+• The exception occurred while using some linear address that has been passed to
+  the kernel as a parameter of a system call.
+
+  In this case, it jumps to a “fixup code,” which typically sends a SIGSEGV
+  signal to current or terminates a system call handler with a proper error
+  code.
+
+• The exception is due to a real kernel bug.
+ 
+  In this case, the function prints a complete dump of the CPU registers and of
+  the Kernel Mode stack both on the console and on a system message buffer.
+
+  it then kills the current process by invoking the do_exit() function
+
+  This is the so-called “Kernel oops” error, named after the message displayed.
+  The dumped values can be used by kernel hackers to reconstruct the conditions
+  that triggered the bug, and thus find and correct it.
+
+Handling a Faulty Address Inside the Address Space:
+- If address belongs to the process address space:
+
+-- If the exception was caused by a write access:
+   the function checks whether the memory region is writable. If not, it jumps
+   to the bad_area code; if so, it sets the write local variable to 1.
+
+-- If the exception was caused by a read or execute access:
+
+   function checks whether the page is already present in RAM. In this case, the
+   exception occurred because the process tried to access a privileged page
+   frame (one whose User/Supervisor flag is clear) in User Mode so the function
+   jumps to the bad_area code.
+
+   If the page is not present, the function also checks whether the memory
+   region is readable or executable. If the memory region access rights match
+   the access type that caused the exception, the handle_mm_fault( ) function is
+   invoked to allocate a new page frame:
+
+handle_mm_fault():
+- handle_mm_fault() function returns VM_FAULT_MINOR or VM_FAULT_MAJOR if it
+  succeeded in allocating a new page frame for the process.
+
+VM_FAULT_MINOR:	minor fault
+ indicates that the Page Fault has been handled without blocking the current
+ process.
+
+VM_FAULT_MAJOR: major fault
+-  indicates that the Page Fault forced the current process to sleep
+- a Page Fault that blocks the current process is called a major fault
+- The function can also return VM_FAULT_OOM (for not enough memory) or 
+  VM_FAULT_SIGBUS (for every other error).
+
+- If handle_mm_fault() cannot allocate the new page frame, it returns the value
+VM_FAULT_OOM ; in this case, the kernel usually kills the current process.
+However, if current is the init process, it is just put at the end of the run
+queue and the scheduler is invoked; once init resumes its execution,
+handle_mm_fault() is executed again:
+
+The handle_mm_fault() function acts on four parameters:
+	pgd = pgd_offset(mm, address);
+
+	spin_lock(&mm->page_table_lock);
+	pud = pud_alloc(mm, pgd, address);
+	if (pud) {
+		pmd = pmd_alloc(mm, pud, address);
+		if (pmd) {
+			pte = pte_alloc_map(mm, pmd, address);
+			if (pte)
+				return handle_pte_fault(mm, vma, address,
+						write_access, pte, pmd);
+		}
+	}
+	spin_unlock(&mm->page_table_lock);
+	return VM_FAULT_OOM;
+- function starts by checking whether the Page Middle Directory and the Page
+Table used to map address exist.
+
+- The pgd local variable contains the Page Global Directory entry that refers to
+address.
+
+- pud_alloc() and pmd_alloc( ) are invoked to allocate, a new Page Upper
+Directory and a new Page Middle Directory.
+
+- pte_alloc_map( ) is then invoked to allocate, a new Page Table
+
+- If both operations are successful, the pte local variable points to the Page
+Table entry that refers to address
+
+- The handle_pte_fault() function is then invoked to inspect the Page Table
+entry corresponding to address and to determine how to allocate a new page frame
+for the process:
+
+• If the accessed page is not present—that is, if it is not already stored in
+any page frame—the kernel allocates a new page frame and initializes it
+properly; this technique is called demand paging.
+
+• If the accessed page is present but is marked read-only—i.e., if it is already
+stored in a page frame—the kernel allocates a new page frame and initializes its
+contents by copying the old page frame data; this technique is called Copy On
+Write.
+--------------------------------------------------------------------------------
+Demand Paging
+--------------------------------------------------------------------------------
+- The term demand paging denotes a dynamic memory allocation technique that
+  consists of deferring page frame allocation until the last possible moment.
+- until the process attempts to address a page that is not present in RAM, thus
+  causing a Page Fault exception.
+
+- The motivation behind demand paging is that processes do not address all the
+  addresses included in their address space right from the start.
+  (in fact, some of these addresses may never be used by the process)
+
+Q why Demand paging is thus preferable to global allocation?
+- because it increases the average number of free page frames in the system	and
+therefore allows better use of the available free memory.
+
+- it allows the system as a whole to get better throughput with the same amount
+of RAM.
+
+- The price to pay for all these good things is system overhead: 
+each Page Fault exception induced by demand paging must be handled by the
+kernel, thus wasting CPU cycles.
+
+Fortunately, the locality principle ensures that once a process starts working
+with a group of pages, it sticks with them without addressing other pages for
+quite a while. Thus, Page Fault exceptions may be considered rare events.
+
+handle_pte_fault( ) function is able to distinguish the three cases:
+1) page was never accessed by the process and it does not map a disk file
+	do_no_page(mm, vma, address, write_access, pte, pmd);
+	do_anonymous_page()
+
+2) page belongs to a non-linear disk file mapping
+   do_file_page(mm, vma, address, write_access, pte, pmd);
+
+3) page was already accessed by the process, but its content is temporarily
+   saved on disk.
+   do_swap_page(mm, vma, address, pte, pmd, entry, write_access);
+
+
+"do_anonymous_page() function to get a new page frame"
+--------------------------------------------------------------------------------  
+Copy On Write
+--------------------------------------------------------------------------------  
+Modern Unix kernels, including Linux, when a fork( ) system call is issued,
+instead of duplicating page frames, they are shared between the parent and the
+child process.
+- as long as they are shared, they cannot be modified
+- Whenever the parent or the child process attempts to write into a shared page
+  frame, an exception occurs.
+- At this point, the kernel duplicates the page into a new page frame that it
+  marks as writable.
+- The original page frame remains write-protected: 
+- when the other process tries to write into it. kernel checks whether the
+  writing process is the only owner of the page frame; in such a case, it makes
+  the page frame writable for the process.
+- The _count field of the page descriptor is used to keep track of the number of
+  processes that are sharing the corresponding page frame.
+- Whenever a process releases a page frame or a Copy On Write is executed on it,
+  its _count field is decreased; the page frame is freed only when _count
+  becomes -1.
+  

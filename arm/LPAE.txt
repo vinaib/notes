@@ -1,0 +1,20 @@
+--------------------------------------------------------------------------------
+LPAE
+--------------------------------------------------------------------------------
+1) LPAE is an OPTIONAL extension to the ARMv7-A architecture profile
+2) LPAE must also include multiprocessor extension
+3) LPAE adds new translation table format
+Long-descriptor translation table format
+4) Without LPAE
+Short-descriptor translation table format
+5) LPAE implementation must support both Translation table formats
+6) The addition of a requirement that LDRD and STRD accesses to 64-bit aligned
+locations are 64-bit single-copy atomic as seen by translation table walks and
+accesses to translation tables.
+7) The Long-descriptor translation table format always includes the PXN
+attribute.
+8) In short-descriptor translation table format inclusion of PXN attribute is
+optional
+9) Implementation including multiprocessing instruction cannot include FCSE
+10) SEE ARM ARM V7A B1-1159
+

@@ -1,0 +1,62 @@
+After Decompression:
+--------------------------------------------------------------------------------
+File: arch/arm/kernel/head.S
+ENTRY(stext)
+
+	ldr r13, __mmap_switched
+
+	b   __enable_mmu
+ENDPROC(stext)
+
+ENTRY(__enable_mmu)
+	b   __enable_mmu
+ENDPROC(__enable_mmu)
+	
+ENTRY(__turn_mmu_on)
+	mov r3, r13
+	ret r3			//Jump to __mmap_switched
+ENDPROC(__turn_mmu_on)
+--------------------------------------------------------------------------------
+File: arch/arm/kernel/head-common.S
+
+//function
+ __mmap_switched:			
+	b start_kernel 			//c routine, kernel startup
+ENDPROC(__mmap_switched)
+
+
+
+--------------------------------------------------------------------------------
+File: init/main.c: 
+asmlinkage __visible void __init start_kernel(void) 			
+
+	// Starting my kernel journey from here
+	setup_arch(); 		[defined in arch/arm/kernel/setup.c]
+
+	paging_init()
+
+--------------------------------------------------------------------------------
+
+Kernel Entry:
+- The bootloader calls the kernel image by branching directly to its first instruction, the start label in arch/arm/boot/compressed/head.S
+- MMU and data cache must be disabled. 
+- The core must be in Supervisor mode, with CPSR I and F Bits set (IRQ and FIQ disabled). 
+- R0 must contain 0, R1 the MACH_TYPE value and R2 the address of the tagged list of parameters
+
+- The first step in getting the kernel working is to decompress it (mostly architecture independent)
+- parameters passed from the bootloader are saved and the caches and MMU are enabled
+- Checks are made to see if the decompressed image will overwrite the compressed image, before calling decompress_kernel() in arch/arm/boot/compressed/misc.c
+- cache is then cleaned and invalidated before being disabled again.
+- branch to the kernel startup entry point in arch/arm/kernel/head.S
+
+Platform-specific actions:
+- first checks core type using __lookup_processor_type() that returns a code specifying which core it is running on
+- function __lookup_machine_type() is then used to look up machine type
+- basic set of translation tables is then defined which map the kernel code. 
+- The cache and MMU are initialized and other control registers set. 
+- The data segment is copied to RAM and start_kernel() is called
+
+Kernel start-up code:
+- 
+
+

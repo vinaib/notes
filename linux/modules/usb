@@ -1,0 +1,129 @@
+--------------------------------------------------------------------------------
+Transceiver:
+--------------------------------------------------------------------------------
+-  a transceiver is a device that is able to both transmit and receive
+information through a transmission medium.
+
+- combination of a transmitter and a receiver
+
+- A USB transceiver enables processors to have a digital USB core integrated
+on-chip, without the analog circuitry.
+
+- A typical transceiver converts USB differential voltages to digital logic
+signal levels and converts logic levels to different USB signals.
+
+- A standalone USB transceiver takes care of the compliance and signal quality
+and any problem in the differential signals on the USB cable. Thus, the
+transceiver helps stop adverse signals on the cable passing to the application
+processor and saves the application processor from damages.
+
+- A typical transceiver chip has common pin-outs for D+, D–, receive data, and
+voltage. Internally, the transceiver converts the D+ and the D– lines from
+single-ended logic output to the output pin.
+--------------------------------------------------------------------------------
+Enumeration:
+--------------------------------------------------------------------------------
+1. The USB device is attached to the host, which receives an event indicating a
+change in the pipe’s status. The USB device is in the powered state, and the
+port it is attached to is disabled.
+
+2. The host queries about the change in the bus.
+
+3. Once the host determines that a new device is attached, it waits for at least
+100ms for the device to become stable after power, after which it enables and
+resets the port.
+
+4. After a successful reset, the USB device is in a default state and can draw
+power to a range of 100 mA from VBUS pin.
+
+5. Once the device is in a default state, the host assigns a unique address to
+the USB device, which moves the device to an address state.
+
+6. The host starts communicating with the USB device in the default control pipe
+and reads the device descriptor.
+
+7. Subsequently, the host reads the device configuration information.
+
+8. The host selects the configuration, which moves the device to a configured
+state and makes it ready for use.
+
+Attached -> powered -> default -> addressed -> configured
+--------------------------------------------------------------------------------
+Pipes:
+--------------------------------------------------------------------------------
+stream pipes:
+- Stream pipes deliver data in the data packet portion of bus transactions 
+- they have no USB-required structure on the data content
+- Data flows in at one end of a pipe and out the other end in the same order
+- in fifo fashion
+- always uni-directional
+- stream pipe to a device is bound to a single device endpoint number in the
+  appropriate direction
+- device endpoint number for the opposite direction can be used for some other
+  stream pipe to the device.
+
+Message pipes:
+- interact with the endpoint in a different manner than stream pipes
+- First, a request is sent to the USB device from the host. 
+- followed by data transfer(s) in the appropriate direction.
+- Finally, a Status stage follows at some later time.
+- message pipes impose a structure on the communication flow
+- Default Control Pipe is always a message pipe
+
+NAK:
+- An endpoint can inform the host that it is busy by responding with NAK
+- A NAK response to a transaction does not constitute an error 
+
+Short packets:
+- less than maximum-sized data payloads
+- could indicate the end of a transfer
+- A client can expect a variable-sized amount of data in an IRP, not error
+- A client can expect a specific-sized amount of data, treated as an error
+
+Zero length packet (ZLP):
+- A ZLPtransfer does not contain data as part of the transfer. 
+- When the data to be sent is an exact multiple of wMaxPacketSize, a ZLP has to
+  be sent after the data transfer is complete to indicate the end of transfer.
+- Sometimes a ZLP feature is implemented as part of the hardware
+
+STALL:
+- A STALL indicates that a function is unable to transmit or receive data 
+- or to indicate control pipe request is not supported. 
+- The state of a function after returning a STALL is undefined
+
+--------------------------------------------------------------------------------
+Frames & Micro Frames
+--------------------------------------------------------------------------------
+- USB establishes a 1 ms time base called a frame on a full-/low-speed bus.
+
+- USB establishes a 125 μ s time base called a microframe on a high-speed bus.  
+--------------------------------------------------------------------------------
+Transfers
+--------------------------------------------------------------------------------
+Control transfers:(non periodic/asynchronous)
+-low-speed devices, it is 8 bytes
+-full-speed devices, it is 8, 16, 32, or 64 bytes
+-high-speed devices, it is 64 bytes
+-High-speed control endpoints must support the PING flow control protocol for
+OUT transactions.
+- 10% frame reservation for full-/low-speed non-periodic transfers
+- 20% microframe reservation for non-periodic transfers
+
+Isochronous Transfer:(periodic transfers)
+- full-speed, 1023 bytes
+- High-speed, 1024-bytes
+- high speed, high bandwidth: 2/3 transactions per microframe
+- USB requires that no more than 90% of any frame be allocated for periodic
+- High-speed endpoints can allocate at most 80% of a microframe
+
+Interrupt Transfers:(periodic transfers)
+- low speed, 8 bytes
+- full-speed, 64 bytes or less
+- High speed, up to 1024 bytes.
+
+Bulk Transfers:
+- low speed: not have bulk endpoints
+- full-speed, 8, 16, 32, or 64 bytes for 
+- high-speed, 512 bytes 
+
+

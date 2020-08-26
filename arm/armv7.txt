@@ -290,6 +290,18 @@ eg:
 MRC p15, 0, R1, c0, c0, 0
 
 The result, placed in register R1.
+--------------------------------------------------------------------------------
+ABI
+--------------------------------------------------------------------------------
+- The Application Binary Interface (ABI) for the ARM architecture specification describes a set of rules that an ARM executable must adhere to in order to execute in a specific environment. 
+- It specifies conventions for executables, including file formats and ensures that objects from different compilers or assemblers can be linked together successfully. 
+- There are variants of the ABI for specific purposes, for example, the Linux ABI for the ARM architecture or the Embedded ABI (EABI).
 
-
-
+AAPCS:
+- The ARM Architecture Procedure Call Standard (AAPCS) is part of the ABI
+- It specifies conventions for register and stack usage by the compiler and during subroutine calls. 
+- Knowledge of this is vital for inter-working C and assembly code and can be useful for writing optimal code.
+- The AAPCS specifies rules that must be adhered to by callers to enable a callee function to run and 
+- what callee routines must do in order to ensure that callers can continue function correctly when the callee returns. 
+- It describes the way that data is laid out in memory and how the stack is laid out,
+- It defines how code that has been separately compiled or assembled works together.	

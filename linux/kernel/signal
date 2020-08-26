@@ -1,0 +1,281 @@
+--------------------------------------------------------------------------------
+Signal
+--------------------------------------------------------------------------------
+- A signal is a very short message that may be sent to a process or a group of processes
+
+Q Who sends signal to a process?
+
+- The only information given to the process is usually a number identifying the signal
+
+See ULK 3rd ED PG: 421
+vinai@vinai:$ kill -l
+ 1) SIGHUP	 2) SIGINT	 3) SIGQUIT	 4) SIGILL	 5) SIGTRAP
+ 6) SIGABRT	 7) SIGBUS	 8) SIGFPE	 9) SIGKILL	10) SIGUSR1
+11) SIGSEGV	12) SIGUSR2	13) SIGPIPE	14) SIGALRM	15) SIGTERM
+16) SIGSTKFLT	17) SIGCHLD	18) SIGCONT	19) SIGSTOP	20) SIGTSTP
+21) SIGTTIN	22) SIGTTOU	23) SIGURG	24) SIGXCPU	25) SIGXFSZ
+26) SIGVTALRM	27) SIGPROF	28) SIGWINCH	29) SIGIO	30) SIGPWR
+31) SIGSYS	34) SIGRTMIN	35) SIGRTMIN+1	36) SIGRTMIN+2	37) SIGRTMIN+3
+38) SIGRTMIN+4	39) SIGRTMIN+5	40) SIGRTMIN+6	41) SIGRTMIN+7	42) SIGRTMIN+8
+43) SIGRTMIN+9	44) SIGRTMIN+10	45) SIGRTMIN+11	46) SIGRTMIN+12	47) SIGRTMIN+13
+48) SIGRTMIN+14	49) SIGRTMIN+15	50) SIGRTMAX-14	51) SIGRTMAX-13	52) SIGRTMAX-12
+53) SIGRTMAX-11	54) SIGRTMAX-10	55) SIGRTMAX-9	56) SIGRTMAX-8	57) SIGRTMAX-7
+58) SIGRTMAX-6	59) SIGRTMAX-5	60) SIGRTMAX-4	61) SIGRTMAX-3	62) SIGRTMAX-2
+63) SIGRTMAX-1	64) SIGRTMAX	
+
+SIGCHLD: signal that is sent to a parent process when a child stops or terminates
+Q who sends?
+
+SIGSEGV: signal that is sent to a process when it makes an invalid memory reference
+“Page Fault Exception Handler”
+
+Signals serve two main purposes:
+• To make a process aware that a specific event has occurred
+• To cause a process to execute a signal handler function included in its code
+
+Of course, the two purposes are not mutually exclusive, because often a process must react to some event by executing a specific routine.
+--------------------------------------------------------------------------------
+regular signals vs realtime signals
+--------------------------------------------------------------------------------
+regular signals: 	
+- numbered from 1  to 31
+- regular signals of the same kind are not queued, if a regular signal is sent many times in a row, just one of them is delivered to the receiving process
+
+realtime signals: 	
+- numbered from 32 to 64
+- realtime signals are always queued so that multiple signals sent will be received
+- Linux kernel does not use real-time signals,
+--------------------------------------------------------------------------------
+Signal transmission
+--------------------------------------------------------------------------------
+- Signals sent to a process that is not currently executing must be saved by the kernel until that process resumes execution
+- kernel distinguishes two different phases related to signal transmission
+Signal generation:
+The kernel updates a data structure of the destination process to represent that a new signal has been sent.
+
+Signal delivery:
+The kernel forces the destination process to react to the signal by changing its execution state, by starting the execution of a specified signal handler, or both.
+
+- Signals are consumable resources
+- Signals that have been generated but not yet delivered are called pending signals.
+- In general, a signal may remain pending for an unpredictable amount of time.
+- Signals are usually delivered only to the currently running process
+- Signals of a given type may be selectively blocked by a process. In this case, the process does not receive the signal until it removes the block
+- When a process executes a signal-handler function, it usually masks the corresponding signal. i.e., it automatically blocks the signal until the handler terminates.
+- A signal handler therefore cannot be interrupted by another occurrence of the handled signal, and the function doesn’t need to be reentrant.
+
+The kernel must:
+- Remember which signals are blocked by each process
+- When switching from Kernel Mode to User Mode, check whether a signal for a process has arrived. This happens at almost every timer interrupt
+- Determine whether the signal can be ignored 
+- Handle the signal, which may require switching the process to a handler function at any point during its execution and restoring the original execution context after the function returns.
+--------------------------------------------------------------------------------
+Actions Performed upon Delivering a Signal
+--------------------------------------------------------------------------------
+There are three ways in which a process can respond to a signal:
+
+1) Explicitly ignore the signal
+
+2) Execute the default action. This action, which is predefined by the kernel, depends on the signal type
+a) Terminate: The process is terminated (killed).
+b) Dump: The process is terminated (killed) and a core file containing its executioncontext is created, if possible; this file may be used for debug purposes.
+c) Ignore: The signal is ignored.
+d) Stop: The process is stopped—i.e., put in the TASK_STOPPED state 
+e) Continue: If the process was stopped ( TASK_STOPPED ), it is put into the TASK_RUNNING state
+
+3) Catch the signal by invoking a corresponding signal-handler function.
+
+BLocking signal: 
+A signal is not delivered as long as it is blocked; it is delivered only after it has been unblocked.
+
+Ignoring signal:
+An ignored signal is always delivered, and there is no further action.
+--------------------------------------------------------------------------------
+SIGKILL and SIGSTOP must always execute default handlers
+--------------------------------------------------------------------------------
+The SIGKILL and SIGSTOP signals cannot be ignored, caught, or blocked, and their default actions must always be executed
+
+
+--------------------------------------------------------------------------------
+POSIX Signals and Multithreaded Applications
+--------------------------------------------------------------------------------
+- Signal handlers must be shared among all threads of a multithreaded application
+- Each thread must have its own mask of pending and blocked signals
+
+kill() and sigqueue()
+- The kill() and sigqueue() POSIX library functions must send signals to whole multithreaded applications, not to a specific thread.
+- The same holds for all signals (such as SIGCHLD , SIGINT , or SIGQUIT ) generated by the kernel.
+
+tkill()
+- Each signal sent to a multithreaded application will be delivered to just one thread, which is arbitrarily chosen by the kernel among the threads that are not blocking that signal.
+
+- If a fatal signal is sent to a multithreaded application, the kernel will kill all threads of the application—not just the thread to which the signal has been delivered.
+
+Definition of fatal signal:
+- A signal is fatal for a given process if delivering the signal causes the kernel to kill the process.
+- The SIGKILL signal is always fatal
+- that a signal caught by a process and whose corresponding signal-handler function terminates the process is not fatal, because the process chose to terminate itself rather than being killed by the kernel.
+
+-------------------------------------------------------------------------------
+private and shared signal
+--------------------------------------------------------------------------------
+Private signal:
+a pending signal is private if it has been sent to a specific process; 
+
+Shared signal:
+it is shared if it has been sent to a whole thread group
+--------------------------------------------------------------------------------
+Data Structures Associated with Signals
+--------------------------------------------------------------------------------
+The signal descriptor:
+- signal field of the process descriptor points to a signal descriptor
+- a signal_struct structure that keeps track of the shared pending signals
+- the signal descriptor is shared by all processes belonging to the same thread group
+- that is, all processes created by invoking the clone() system call with the
+  CLONE_THREAD flag set—thus the signal descriptor includes the fields that must
+  be identical for every process in the same thread group.
+
+
+The signal handler descriptor:
+- every process refers also to a signal handler descriptor, which is a sighand_struct structure describing how each signal must be handled by the thread group.
+- the signal handler descriptor may be shared by several processes by invoking the clone() system call with the CLONE_SIGHAND flag set
+- the count field in this descriptor specifies the number of processes that share the structure.
+
+- In a POSIX multithreaded application, all lightweight processes in the thread group refer to the same signal descriptor and to the same signal handler descriptor.
+
+The sigaction data structure:
+- Some architectures assign properties to a signal that are visible only to the kernel
+- the properties of a signal are stored in a k_sigaction structure
+k_sigaction structure fields:
+1) sa_handler
+- its value can be a pointer to the signal handler
+- SIG_DFL (that is, the value 0) to specify that the default action is performed,
+- SIG_IGN (that is, the value 1) to specify that the signal is ignored.	
+
+2) sa_flags
+This set of flags specifies how the signal must be handled;
+
+3) sa_mask
+This sigset_t variable specifies the signals to be masked when running the signal handler.
+
+Flag Name 		Description
+SA_NOCLDSTOP 	Applies only to SIGCHLD ; do not send SIGCHLD to the parent when the process is stopped
+SA_NOCLDWAIT 	Applies only to SIGCHLD ; do not create a zombie when the process terminates
+SA_SIGINFO 		Provide additional information to the signal handler 
+SA_ONSTACK 		Use an alternative stack for the signal handler
+SA_RESTART 		Interrupted system calls are automatically restarted
+SA_NODEFER, 
+SA_ NOMASK 		Do not mask the signal while executing the signal handler
+SA_RESETHAND,
+SA_ONESHOT 		Reset to default action after executing the signal handler
+
+--------------------------------------------------------------------------------
+The pending signal queues
+--------------------------------------------------------------------------------
+shared pending signal queue:
+- shared_pending field of the signal descriptor, stores the pending signals of the whole thread group.
+
+private pending signal queue:
+- rooted at the pending field of the process descriptor, stores the pending signals of the specific (lightweight) process.
+
+Data structure:
+- A pending signal queue consists of a sigpending data structure:
+
+struct sigpending {
+	struct list_head list;
+	sigset_t signal;
+}
+--------------------------------------------------------------------------------
+Generating a Signal
+--------------------------------------------------------------------------------
+Who generates the signal/ who sends the signal?
+
+- Many kernel functions generate signals, by updating one or more process descriptors as needed.
+
+- They do not directly perform the second phase of delivering the signal:
+  but, depending on the type of signal and the state of the destination processes, 
+  may wake up some processes and force them to receive the signal
+
+Kernel functions that generate a signal for a process:
+ send_sig(), send_sig_info(), force_sig(), force_sig_info(), sys_tkill(),
+ sys_tgkill(), force_sig_specific()
+ All functions end up invoking the specific_send_sig_info().
+
+Kernel functions that generate a signal for a thread group:
+ send_group_sig_info(), kill_pg(), kill_pg_info(), kill_proc(),
+ kill_proc_info(), sys_kill(), sys_rt_sigqueueinfo()
+ All functions end up invoking the group_send_sig_info().
+
+The specific_send_sig_info() Function sends a signal to a specific process.
+The send_signal() function inserts a new item in a pending signal queue.
+The group_send_sig_info() function sends a signal to a whole thread group.
+--------------------------------------------------------------------------------
+Delivering a Signal
+--------------------------------------------------------------------------------
+- In case that process was not running on the CPU at that moment, the kernel deferred the task of delivering the signal
+- the kernel checks the value of the TIF_SIGPENDING flag of the process before allowing the process to resume its execution in User Mode. 
+- Thus, the kernel checks for the existence of pending signals every time it finishes handling an interrupt or an exception.
+- To handle the nonblocked pending signals, the kernel invokes the do_signal( ) function
+--------------------------------------------------------------------------------
+Juggle stacks while executing signal handler (kernel and user stacks)
+** the Kernel Mode stack is emptied at every transition from User Mode to Kernel Mode
+--------------------------------------------------------------------------------
+- Executing a signal handler is a rather complex task because of the need to juggle stacks carefully while switching between User Mode and Kernel Mode. 
+
+- Signal handlers are functions defined by User Mode processes and included in the User Mode code segment
+- The handle_signal() function runs in Kernel Mode while signal handlers run in User Mode
+- this means that the current process must first execute the signal handler in User Mode before being allowed to resume its “normal” execution.
+- when the kernel attempts to resume the normal execution of the process, 
+  the Kernel Mode stack no longer contains the hardware context of the interrupted program, because the Kernel Mode stack is emptied at every transition from User Mode to Kernel Mode
+- An additional complication is that signal handlers may invoke system calls  
+  -- In this case, after the service routine executes, control must be returned to the signal handler instead of to the normal flow of code of the interrupted program.
+
+Solution:  when kernel mode stack get emptied when it transitions to user mode stack
+- The solution adopted in Linux consists of copying the hardware context saved in the Kernel Mode stack onto the User Mode stack of the current process.
+- The User Mode stack is also modified in such a way that, when the signal handler terminates, 
+  -- the sigreturn() system call is automatically invoked to copy the hardware context back on the Kernel Mode stack and to restore the original content of the User Mode stack.
+
+Working procedure:
+- A nonblocked signal is sent to a process
+- When an interrupt or exception occurs, the process switches into Kernel Mode
+- Right before returning to User Mode, the kernel executes the do_signal( ) function, 
+- which in turn handles the signal (by invoking handle_signal() ) and sets up the User Mode stack (by invoking setup_frame() or setup_rt_frame())
+- When the process switches again to User Mode, it starts executing the signal handler, because the handler’s starting address was forced into the program counter
+- When that function terminates, the return code placed on the User Mode stack by the setup_frame( ) or setup_rt_frame() function is executed.
+- This code invokes the sigreturn() or the rt_sigreturn() system call; 
+-- the corresponding service routines copy the hardware context of the normal
+   program to the Kernel Mode stack and restore the User Mode stack back to its
+   original state (by invoking restore_sigcontext()).
+- When the system call terminates, the normal program can thus resume its execution.
+
+Starting the signal handler:
+- When do_signal( ) returns, the current process resumes its execution in User Mode
+- Because of the preparation by setup_frame(), the eip register points to the first instruction of the signal handler
+- while esp points to the first memory location of the frame that has been pushed on top of the User Mode stack
+- As a result, the signal handler is executed
+
+Terminating the signal handler:
+- When the signal handler terminates, the return address on top of the stack points to the code in the vsyscall page referenced by the pretcode field of the frame
+- Therefore, the signal number is discarded from the stack; the sigreturn( ) system call is then invoked.
+- The sys_sigreturn() function computes the address of the pt_regs data structure regs , which contains the hardware context of the User Mode process
+
+Reexecution of System Calls: (when system call is called from signal handler)
+- The request associated with a system call cannot always be immediately satisfied by the kernel
+- when this happens, the process that issued the system call is put in a TASK_INTERRUPTIBLE or TASK_UNINTERRUPTIBLE state.
+- If the process is put in a TASK_INTERRUPTIBLE state and some other process sends a signal to it
+- the kernel puts it in the TASK_RUNNING state without completing the system call
+- The signal is delivered to the process while switching back to User Mode
+- When this happens, the system call service routine does not complete its job, but returns an EINTR, ERESTARTNOHAND, ERESTART_RESTARTBLOCK, ERESTARTSYS, or ERESTARTNOINTR error code.
+EINTR: which means that the system call has not been completed
+
+Two checks:
+- Restarting a system call interrupted by a non-caught signal
+- Restarting a system call for a caught signal
+
+  
+
+	
+
+
+
+

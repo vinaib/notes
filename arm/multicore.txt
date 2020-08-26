@@ -1,19 +1,28 @@
 # An ARM multi-core processor can contain between one and four cores
 
-# Each core can be individually configured to take part (or not) in a data cache
-# coherency management scheme. A Snoop Control Unit (SCU) device inside the
-# processor has the task of automatically maintaining level 1 data cache
-# coherency, between cores within the cluster without software intervention.
+# Each core can be individually configured to take part (or not) in a data cache coherency management scheme 
 
-# ARM multi-core processors include an integrated interrupt controller. Multiple
-# external interrupt sources can be independently configured to target one or
-# more of the individual processor cores.
+SCU:
+----
+# A Snoop Control Unit (SCU) device inside the processor has the task of
+  automatically maintaining level 1 data cache coherency, between cores within
+  the cluster without software intervention.
 
-# each core is able to signal (or broadcast) any interrupt to any other core or
-# set of cores in the system, from software.
+Interrupt Controller: GIC 400
+-----------------------------
+# ARM multi-core processors include an integrated interrupt controller. 
+# Multiple external interrupt sources can be independently configured to target
+  one or more of the individual processor cores.
+# furthermore each core is able to signal (or broadcast) any interrupt to any
+  other core or set of cores in the system, from software.
+# These mechanisms enable the OS to share and distribute interrupts across all
+  cores and to coordinate activities using the low-overhead signaling mechanisms
+  provided.
 
+Multiprocessor Hardware mechansims:
+------------------------------------
 # Cortex-A MPCore processors also provide hardware mechanisms to accelerate OS
-# kernel operations such as system-wide cache and TLB maintenance operations.
+  kernel operations such as system-wide cache and TLB maintenance operations.
 
 # Each of the Cortex-A series multi-core processors have the following features:
 • Configurable between one and four cores (at design time).
@@ -21,4 +30,56 @@
 • Integrated interrupt controller.
 • Local timers and watchdogs.
 • An optional Accelerator Coherency Port (ACP).
+
+--------------------------------------------------------------------------------
+Energy consumption:
+--------------------------------------------------------------------------------
+- The overall energy consumption of a multi-core system can be significantly lower than that of a system based on a single processor core
+- Multiple cores enable execution to be completed faster and so some elements of the system might be completely powered down for longer periods
+- Alternatively, a system with multiple cores might be able to operate at a lower frequency than that required by a single processor to achieve the same throughput
+- Most current systems do not permit the frequency of cores to be changed independently. 
+- However, each core can be dynamically clock gated, giving additional power and energy savings.
+--------------------------------------------------------------------------------
+Multi cores system designs
+--------------------------------------------------------------------------------
+- A system that contains one or two cores could be scaled up for more performance by adding additional cores, without requiring redesign of the whole system or significant changes to software.
+- Having multiple cores at our disposal also enables more options for system configuration.
+  Example:
+  - you might have a system that uses separate cores, one to handle a hard real-time requirement
+  - another for an application requiring high, uninterrupted performance
+--------------------------------------------------------------------------------
+more Responsive than single core
+--------------------------------------------------------------------------------
+- Wheninterrupts are distributed between cores there will be more than one core available to respond to an interrupt and fewer interrupts per core to be serviced.
+- Multiple cores will also enable an important background process to progress simultaneously with an important but unrelated foreground process
+
+Heterogeneous system:
+---------------------
+- ARM processors were likely to be implemented in systems that contained other
+processors, this is commonly meant to be heterogeneous systems
+
+- containing an ARM processor plus a separate DSP processor
+
+- Such systems have different software executing on different cores and the individual processors can have differing privileges and views of memory
+- Many widely used ARM systems, such as the TI OMAP series, or the Freescale i.MX, are examples of this.
+
+We can distinguish between systems that contain:
+--------------------------------------------------
+• A single processor containing a single core, such as the Cortex-A8 processor
+
+• A multi-core processor, that contains several cores capable of independent
+instruction execution, that can be externally viewed as a single unit or
+cluster, either by the system designer or by an operating system that can
+abstract the underlying resources from the application layer.
+A7 Processor having 4 cores, RPI2
+A7 is one cluster
+
+• Multiple clusters in which each cluster contains multiple cores.
+System having A7 Processor and A15 Processors with each processor having
+multiple cores. 
+A7 is one cluster
+A15 is another cluster
+Example: Hikey 960
+  
+
 

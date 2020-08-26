@@ -1,0 +1,28 @@
+--------------------------------------------------------------------------------
+File: include/asm-generic/memory_model.h
+https://www.kernel.org/doc/html/latest/vm/memory-model.html
+--------------------------------------------------------------------------------
+
+BBB: CONFIG_FLATMEM is defined in its Kconfig
+
+CONFIG_FLATMEM:
+- This model is suitable for non-NUMA systems
+- global mem_map array that maps the entire physical memory
+- To allocate the mem_map array, architecture specific setup code should call
+  free_area_init() function
+- mappings array is not usable until the call to memblock_free_all() that hands
+  all the memory to the page allocator.  
+- With FLATMEM, the conversion between a PFN and the struct page is
+  straightforward: PFN - ARCH_PFN_OFFSET is an index to the mem_map array.  
+- The ARCH_PFN_OFFSET defines the first page frame number for systems with
+  physical memory starting at address different from 0.				   
+
+CONFIG_DISCONTIGMEM
+
+CONFIG_SPARSEMEM
+
+Regardless of the selected memory model, there exists one-to-one mapping between
+the physical page frame number (PFN) and the corresponding struct page.
+
+Each memory model defines pfn_to_page() and page_to_pfn() helpers that allow the
+conversion from PFN to struct page and vice versa.

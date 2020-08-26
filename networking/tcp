@@ -1,0 +1,55 @@
+--------------------------------------------------------------------------------
+TCP: Transmission Control Protocol
+--------------------------------------------------------------------------------
+- Slower and complex service 
+
+- Connection oriented:
+During connection establishment:
+sender detail: {port no(100): IP Addr(10.10.1.1): Sender can process:5000B/S}
+recv detail: {port no(80): IP Addr(10.1.1.1): recv can process:1000B/S}
+
+- Stateful
+Sender maintains: {100B sent, 500B to be sent, 200B recvd, 50th B resend}
+recv maintains: {100B sent, 500B to be sent, 200B recvd, 50th B resend}
+
+- Byte Oriented
+TCP send and recv data as continuous flow of bytes
+Ensures every byte is recvd by receiver
+Every byte of data is tracked by TCP pcl.
+
+- Robust Protocol
+Handles out of order delivery packet
+
+- Reliable delivery
+Ensures all app data bytes are delivered to recipient, none should be missed
+TCP sender and receiver jointly implements reliable delivery procedures
+TCP implements Automatic Repeat Request(ARQ) for data recovery
+
+- TCP has been designed for Reliable Data Deliverry in a lossy network
+
+- Data loss in communication: Repairing techniques
+1. CRC (ethernet layer)
+2. Checksum (IP layer)
+3. Error Correcting codes (Application)
+   add additional info in the packet, discarding the packet
+
+TCP Automatoc Repeat Request(ARQ) Channllenges:
+-----------------------------------------------
+1. How receiver detects the packet is malformed?
+TCP header has checksum field, if calculated checksum is not equal to checksum 
+in header field, then received packet is corrupted
+
+2. How sender can determine whether the receiver has received the packet?
+
+3. How long the sender should wait for ACK from receiver?
+
+4. What if ACK itself is lost?
+
+5. How receiver will manage when it receives packets out of sequence?
+
+6. What if receiver is slow then sender or receiver receives duplicate copies of
+the packet?
+
+7. what if network itself is slower or recover over a period of time?
+
+8. With how much rate should the sender send the packet to receiver?

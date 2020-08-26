@@ -1,0 +1,22 @@
+--------------------------------------------------------------------------------
+UDP: User Datagram Protocol
+--------------------------------------------------------------------------------
+- Simpler and fast service
+
+- Works on Send and Forget model
+
+- Connection less protocol:
+Do not remember to whom it was communicating with after sending data
+
+- Stateless protocol
+Forgets that it has send data
+
+- Datagrams: Discrete individual units
+Sends data in chunks
+
+- Unreliable delivery:
+dont care whether datagram has actually reached the destination or not
+
+- Out of order delivery:
+- dont care if datagram reached the destination out of order
+

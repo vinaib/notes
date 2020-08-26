@@ -1,0 +1,84 @@
+--------------------------------------------------------------------------------
+The Virtualization Extensions
+--------------------------------------------------------------------------------
+1) OPTIONAL extension to the ARMv7-A architecture profile.
+2) implementation that includes the Virtualization Extensions must include 
+-> the Security Extensions
+-> the Large Physical Address Extension
+-> the Multiprocessing Extensions
+--------------------------------------------------------------------------------
+Basic Model
+--------------------------------------------------------------------------------
+1) include a hypervisor, running in Non-secure Hyp mode, that is responsible for
+switching Guest operating systems.
+
+2) a number of Guest operating systems, each of which runs in the Non-secure PL1
+and PL0 modes.
+
+3) for each Guest operating system, applications, that usually run in User mode
+
+--------------------------------------------------------------------------------
+Guest OS
+--------------------------------------------------------------------------------
+1) A Guest OS runs on a virtual machine. However, its own view is that it is
+running on an ARM processor. Normally, a Guest OS is completely unaware:
+• that it is running on a virtual machine
+• of any other Guest OS.
+
+2) a hypervisor switches between virtual machines.
+
+3) Each virtual machine is identified by a virtual machine identifier (VMID),
+assigned by the hypervisor.
+
+4) Hyp mode operates in its own Non-secure virtual address space, that is
+different from the Non-secure virtual address space accessed from Non-secure PL0
+and PL1 modes.
+
+5) When an implementation includes the Virtualization Extensions, it provides
+independent translation regimes for memory accesses from:
+— Secure modes, the Secure PL1&0 translation regime
+— Non-secure Hyp mode, the Non-secure PL2 translation regime
+— Non-secure PL1 and PL0 modes, the Non-secure PL1&0 translation regime.
+
+6) In the Non-secure PL1&0 translation regime, address translation occurs in two
+stages:
+
+— Stage 1 maps the Virtual Address (VA) to an Intermediate Physical Address
+(IPA). Typically, the Guest OS configures and controls this stage, and believes
+that the IPA is the Physical Address (PA).
+
+— Stage 2 maps the IPA to the PA. Typically, the hypervisor controls this stage,
+and a Guest OS is completely unaware of this translation.
+--------------------------------------------------------------------------------
+Exceptions
+--------------------------------------------------------------------------------
+1) Implements new exceptions:
+— Hypervisor Call (HVC) exception 
+— Hyp Trap exception, What is this? TODO
+— Virtual IRQ exception 
+— Virtual FIQ exception
+— Virtual Abort exception
+
+2) HVBAR
+Implements a new register that holds the exception vector base address for
+exceptions taken to Hyp mode, the HVBAR.
+
+3) Implements a new exception return instruction, ERET , for return from Hyp
+mode
+
+4) Virtual IRQ, Virtual FIQ, Virtual Abort exceptions:
+Software executing in Hyp mode can use these to signal exceptions to the
+other Non-secure modes. A Non-secure PL1 or PL0 mode cannot distinguish a
+virtual exception from the corresponding physical exception.
+
+5) Usage Model:
+A usage model for these exceptions is that physical IRQs, FIQs and asynchronous
+aborts that occur when the processor is in a Non-secure PL1 or PL0 mode are
+routed to Hyp mode. The exception handler, executing in Hyp mode, determines
+whether the exception can be handled in Hyp mode or requires routing to a Guest
+OS. When an exception requires handling by a Guest OS it is marked as pending
+for that Guest OS. When the hypervisor switches to a particular Guest OS, it
+uses the appropriate virtual exception to signal any pending virtual exception
+to that Guest OS.
+
+

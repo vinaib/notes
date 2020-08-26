@@ -1,0 +1,93 @@
+--------------------------------------------------------------------------------
+Handling the Hardware Cache and the TLB
+--------------------------------------------------------------------------------
+-> The L1_CACHE_BYTES macro yields the size of a cache line in bytes
+
+To optimize the cache hit rate: 
+   ---------------------------
+the kernel considers the architecture in making the following decisions:
+
+• The most frequently used fields of a data structure are placed at the low
+offset within the data structure, so they can be cached in the same line.
+
+• When allocating a large set of data structures, the kernel tries to store each
+of them in memory in such a way that all cache lines are used uniformly.
+
+Handling Caches:
+----------------
+-> Cache synchronization is performed automatically by the 80×86 processors
+-> Linux kernel for this kind of processor does not perform any hardware cache
+flushing. 
+-> The kernel does provide, however, cache flushing interfaces for processors
+that do not synchronize caches (like ARM).
+
+Handling the TLB:
+-----------------
+Processors cannot synchronize their own TLB cache automatically because it is
+the kernel, and not the hardware, that decides when a mapping between a linear
+and a physical address is no longer valid.
+
+Context Switch:
+---------------
+-> As a general rule, any process switch implies changing the set of active page
+tables. 
+-> Local TLB entries relative to the old page tables must be flushed 
+-> this is done automatically when the kernel writes the address of the new 
+Page Global Directory into the cr3 control register. 
+
+Avoiding TLB Flushes:
+---------------------
+-> When performing a process switch between two regular processes that use the
+same set of page tables
+-> When performing a process switch between a regular process and a kernel
+thread. kernel threads do not have their own set of page tables; rather, they
+use the set of page tables owned by the regular process that was scheduled last
+for execution on the CPU.
+
+Besides process switch:
+-----------------------
+-> when the kernel assigns a page frame to a User Mode process and stores its
+physical address into a Page Table entry, it must flush any local TLB entry that
+refers to the corresponding linear address.
+
+-> On multiprocessor systems, the kernel also must flush the same TLB entry on
+the CPUs that are using the same set of page tables, if any.
+
+lazy TLB mode:
+--------------
+-> if several CPUs are using the same page tables and a TLB entry must be
+flushed on all of them, then TLB flushing may, in some cases, be delayed on CPUs
+running kernel threads.
+
+-> In fact, each kernel thread does not have its own set of page tables; rather,
+it makes use of the set of page tables belonging to a regular process.
+
+-> However, there is no need to invalidate a TLB entry that refers to a User
+Mode linear address, because no kernel thread accesses the User Mode address
+space.
+
+-> When some CPUs start running a kernel thread, the kernel sets it into lazy
+TLB mode.
+
+-> When requests are issued to clear some TLB entries, each CPU in lazy TLB mode
+does not flush the corresponding entries.
+
+-> however, the CPU remembers that its current process is running on a set of
+page tables whose TLB entries for the User Mode addresses are invalid.
+
+-> As soon as the CPU in lazy TLB mode switches to a regular process with a
+different set of page tables, the hardware automatically flushes the TLB
+entries, and the kernel sets the CPU back in non-lazy TLB mode.
+
+Lazy Invalidation:
+------------------
+-> if a CPU in lazy TLB mode switches to a regular process that owns the same
+set of page tables used by the previously running kernel thread, then any
+deferred TLB invalidation must be effectively applied by the kernel. This “lazy”
+invalidation is effectively achieved by flushing all non-global TLB entries of
+the CPU.
+
+
+
+
+

@@ -1,0 +1,57 @@
+- A device tree is a data structure that describes the hardware configuration
+- It includes information about :
+processors, 
+memory sizes and banks, 
+interrupt configuration, and 
+peripherals.
+
+- The data structure is organized as a tree with a single root node named /.
+- With the exception of the root node, each node has a single parent
+- Each node has a name and can have any number of child nodes. 
+- Nodes can also contain named properties values with arbitrary data, and they are expressed in key-value pairs.
+
+.dts:
+- device tree source format (.dts)
+- the device tree source file
+- defined in IEEE standard 1275
+
+Node:
+-A device tree node must comply with the following syntax:
+	[label:] node-name[@unit-address] {
+		[properties definitions]
+		[child nodes]
+	}
+- Nodes are defined with a name and a unit-address. 
+- Braces mark the beginning and end of the node definition.
+
+DTC:
+- tool to convert the device tree source file (.dts) to the device tree blob (dtb) format
+
+.dtb:
+- The dtb , or blob, is known as the Flattened Device Tree 
+- it is a firmware independent description of the system, in a compressed format that requires no firmware calls to retrieve its properties.
+- Linux kernel loads the dtb before it loads the operating system
+
+chosen node:
+- The chosen node is a placeholder for any environment information that does not belong anywhere else, such as boot arguments for the kernel and default console. 
+- Chosen node properties are usually defined by the boot loader, but the dts file can specify a default value.
+
+Example:
+- The following code fragment shows a root node description for an ARM Versatile Platform Board.
+
+/ {
+	model = "arm,versatilepb";
+	compatible = "arm,versatilepb";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x08000000>;
+	};
+
+	chosen {
+		bootargs = “console=ttyAMA0 debug”;
+	}
+};

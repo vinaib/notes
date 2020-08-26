@@ -1,0 +1,31 @@
+--------------------------------------------------------------------------------
+structures
+--------------------------------------------------------------------------------
+File: include/linux/usb.h
+
+struct usb_device_driver:
+- identifies a USB device driver to the usbcore module.	
+- The probe routine of the struct usb_device_driver identifies whether a particular driver is ready to associate and manage a USB device
+- The disconnect callback routine is called when a USB device is removed or the driver to it is unloaded and the device is no longer accessible
+- examples: 
+	generic driver drivers/usb/core/generic.c
+	usbip stub is usb_device_driver
+
+struct usb_driver:
+- registers the USB interface driver with the usbcore framework
+- The probe callback routine identifies and associates the interface of a USB device with the USB driver
+- disconnect routine when an interface is no longer accessible and the device is disconnected
+- pre_reset method is called before a device is reset, This callback is invoked by the reset routine usb_reset_device()
+- post_reset callback is called after a device is reset, This callback is invoked by the reset routine usb_reset_device()
+- examples: all interfaces drivers like: 
+	usb audio, 
+	usb HID: joystick mouse	keyboard, 
+	usb HUB, 
+	usb cdc class, 
+	usb printer, 
+	usb storage, 
+	usb wlan,
+	usb rndis,
+
+struct usb_bus 
+struct usb_device

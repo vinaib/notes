@@ -1,0 +1,190 @@
+--------------------------------------------------------------------------------
+Work Queues
+--------------------------------------------------------------------------------
+- They allow kernel functions to be activated (much like deferrable functions)
+	and later executed by special kernel threads called "worker threads".
+
+- Normally, it is easy to decide between using work queues and softirqs/tasklets
+If the deferred work needs to sleep, work queues are used. If the deferred work
+need not sleep, softirqs or tasklets are used.
+
+- "Deferrable functions" and "Work queues" are quite different	
+
+- The main difference is that:
+-- deferrable functions run in interrupt context 
+-- while functions in work queues run in process context
+
+- If you need a schedulable entity to perform your bottom-half processing, you need
+work queues.They are the only bottom-half mechanisms that run in process context, and
+thus, the only ones that can sleep.
+
+- This means they are useful for situations in which you need to allocate a lot of memory, obtain a semaphore, or perform block I/O. 
+
+- If you do not need a kernel thread to handle your deferred work, consider a tasklet instead.
+
+Implementing WorkQueue:
+-----------------------
+- In its most basic form, the work queue subsystem is an interface for creating kernel threads to handle work queued from elsewhere.
+
+- These kernel threads are called worker threads.
+
+- Work queues let your driver create a special worker thread to handle deferred work.
+
+- The work queue subsystem, implements and provides a default worker thread for handling work.
+
+- In its Simplest form:
+. A work queue is a simple interface for deferring work to a generic kernel thread
+. The default worker threads are called events/n, where n is the processor number
+. there is one per processor
+. Many drivers in the kernel defer their bottom-half work to the default thread
+
+- Unless a driver or subsystem has a strong requirement for creating its own thread, the default thread is preferred.
+
+- own thread is preferred, when if you perform large amounts of processing in
+the worker thread. Processor intense and performance-critical work might
+benefit from its own thread.
+
+- This also lightens the load on the default threads, which prevents starving
+the rest of the queued work.
+
+
+Let’s look at the heart of worker_thread() , simplified:
+for (;;) {
+	prepare_to_wait(&cwq->more_work, &wait, TASK_INTERRUPTIBLE);
+
+	if (list_empty(&cwq->worklist))
+		schedule();
+
+	finish_wait(&cwq->more_work, &wait);
+
+	run_workqueue(cwq);
+}
+
+The function run_workqueue() , in turn, actually performs the deferred work:
+
+while (!list_empty(&cwq->worklist)) {
+	struct work_struct *work;
+	work_func_t f;
+	void *data;
+
+	work = list_entry(cwq->worklist.next, struct work_struct, entry);
+	f = work->func;
+
+	list_del_init(cwq->worklist.next);
+	work_clear_pending(work);
+	f(work);
+}
+
+Using Work Queues
+-----------------
+1) Creating Work: 
+DECLARE_WORK(name, void (*func)(void *), void *data);
+- This statically creates a work_struct structure named name with handler
+function func and argument data.
+
+Alternatively, you can create work at runtime via a pointer:
+INIT_WORK(struct work_struct *work, void (*func)(void *), void *data);
+
+Work Queue Handler:
+prototype for the work queue handler is:
+- void work_handler(void *data)
+
+- A worker thread executes this function, and thus, the function runs in process context.
+
+- despite running in process context, the work handlers cannot access
+user-space memory because there is no associated user-space memory map for
+kernel threads.
+
+- The kernel can access user memory only when running on behalf of a user-space
+process, such as when executing a system call. Only then is user memory mapped
+in.
+
+Scheduling Work:
+----------------
+- To queue a given work’s handler function with the default events worker threads, simply call
+schedule_work(&work);
+
+- The work is scheduled immediately and is run as soon as the events worker
+thread on the current processor wakes up.
+
+Sometimes you do not want the work to execute immediately, but instead after some delay.
+- schedule_delayed_work(&work, delay);
+
+Flushing Work:
+--------------
+- Queued work is executed when the worker thread next wakes up. 
+- Sometimes, you need to ensure that a given batch of work has completed before continuing.
+-- This is especially important for modules, which almost certainly want to call
+this function before unloading. 
+-- Other places in the kernel also might need to make certain no work is pending, to
+prevent race conditions.
+
+void flush_scheduled_work(void);
+
+- This function waits until all entries in the queue are executed before returning.
+- While waiting for any pending work to execute, the function sleeps.
+- Therefore, you can call it only from process context.
+- Note that this function does not cancel any delayed work
+
+To cancel delayed work, call 
+int cancel_delayed_work(struct work_struct *work);
+--------------------------------------------------------------------------------
+Creating New Work Queues
+--------------------------------------------------------------------------------
+- You create a new work queue and the associated worker threads via a simple
+function:
+struct workqueue_struct *create_workqueue(const char *name);
+
+Example:
+struct workqueue_struct *keventd_wq;
+keventd_wq = create_workqueue(“events”);
+
+- This function creates all the worker threads 
+- one for each processor in the system and prepares them to handle work.
+
+- Creating work is handled in the same manner regardless of the queue type
+
+- After the work is created, 
+
+- the following functions are analogous to 
+
+Enqueues the work to generic event queue
+- schedule_work()
+- schedule_delayed_work() 
+
+Enqueue the work to given queue	
+- int queue_work(struct workqueue_struct *wq, struct work_struct *work)
+- int queue_delayed_work(struct workqueue_struct *wq,struct work_struct *work, unsigned long delay)
+--------------------------------------------------------------------------------
+Which Bottom Half Should I Use?
+--------------------------------------------------------------------------------
+- Tasklets are built on softirqs and therefore, both are similar.
+- The work queue mechanism is an entirely different creature and is built on kernel threads.
+
+- Softirqs, by design, provide the least serialization
+If the code in question is already highly threaded, such as in a networking
+subsystem that is chest-deep in per-processor variables, softirqs make a good
+choice.They are certainly the fastest alternative for timing critical and
+high-frequency uses.
+
+- Tasklets make more sense if the code is not finely threaded.They have a
+simpler interface and, because two tasklets of the same type might not run
+concurrently, they are easier to implement.Tasklets are effectively softirqs
+that do not run concurrently.
+
+A driver developer should always choose tasklets over softirqs, unless prepared
+to utilize per-processor variables or similar magic to ensure that the softirq
+can safely run concurrently on multiple processors.
+
+- If your deferred work needs to run in process context, your only choice of the
+three is work queues. If process context is not a requirement—specifically, if
+you have no need to sleep—softirqs or tasklets are perhaps better suited.
+
+Work queues involve the highest overhead because they involve kernel threads
+and, therefore, context switching.This is not to say that they are inefficient,
+but in light of thousands of interrupts hitting per second (as the networking
+subsystem might experience), other methods make more sense. For mostsituations,
+however, work queues are sufficient.
+
+
+

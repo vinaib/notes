@@ -1,0 +1,23 @@
+--------------------------------------------------------------------------------
+reentrant functions:
+--------------------------------------------------------------------------------
+In computing, a computer program or subroutine is called reentrant:
+
+- if multiple invocations can safely run concurrently. 
+
+- The concept applies even on a single processor system:
+where a reentrant procedure can be interrupted in the middle of its execution
+and then safely be called again ("re-entered") before its previous invocations
+complete execution.
+
+- The previous invocations may resume correct execution before the reentered
+invocation completes, unlike recursion, where the previous invocations may only
+resume correct execution once the reentered invocation completes.
+
+Rules of Reentrancy:
+- Reentrant code may not hold any static or global non-constant data.
+- Reentrant code may not call non-reentrant computer programs or routines.
+
+--------------------------------------------------------------------------------
+thread safe
+--------------------------------------------------------------------------------

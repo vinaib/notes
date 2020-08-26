@@ -1,0 +1,280 @@
+Short-descriptor translation table: 
+
+# first-level descriptor formats:
+----------------------------------
+bits[1:0]= 
+0b00:				Fault
+0b01:				Page table
+0b10:				section(bit[18]=0) or supersection(bit[18]=1), 
+0b11:				section(bit[18]=0) or supersection(bit[18]=1)
+
+Fault:
+1) bits[31:2]: 		IGNORE
+2) bits[1]:			0
+3) bits[0]:			0
+
+Page table:
+The descriptor gives the address of a second-level translation table, 
+that specifies the mapping of the associated 1MByte VA range
+
+1) bits[31:10]: 	Page table base address
+2) bit[9]: 			IMPLEMENTATION DEFINED
+3) bits[8:5]: 		DOMAIN
+4) bits[4]: 		SBZ
+5) bits[3]: 		NS
+6) bits[2]: 		PXN
+7) bits[1:0]: 		{0,1}		//Indicates Page table
+
+Section: Consist of 1MB blocks of memory.
+1)  bits[31:20]: 	Section base address, PA[31:20]
+2)  bits[19]: 		NS
+3)  bits[18]: 		0		
+4)  bits[17]: 		nG
+5)  bits[16]: 		S
+6)  bits[15]: 		AP[2]
+7)  bits[14:12]: 	TEX[2:0]
+8)  bits[11:10]: 	AP[1:0]
+9)  bit[9]: 		IMPLEMENTATION DEFINED
+10) bits[8:5]: 		DOMAIN
+11) bits[4]: 		XN
+12) bits[3]: 		C
+13) bits[2]: 		B
+14) bits[1]:		1
+15) bits[0]:		PXN
+
+SuperSection: Consist of 16MB blocks of memory
+1)  bits[31:24]: 	Super Section base address, PA[31:24]
+2)  bits[23:20]: 	Extended base address, PA[35:32]
+3)  bits[19]: 		NS
+4)  bits[18]: 		1
+5)  bits[17]: 		nG
+6)  bits[16]: 		S
+7)  bits[15]: 		AP[2]
+8)  bits[14:12]: 	TEX[2:0]
+9)  bits[11:10]: 	AP[1:0]
+10)  bit[9]: 		IMPLEMENTATION DEFINED
+11) bits[8:5]: 		Extended Base address, PA[39:36]
+12) bits[4]: 		XN
+13) bits[3]: 		C
+14) bits[2]: 		B
+15) bits[1]:		1
+16) bits[0]:		PXN
+
+# second-level descriptor formats:
+----------------------------------
+
+Fault:
+1) bits[31:2]: 		IGNORE
+2) bits[1]:			0
+3) bits[0]:			0
+
+Large Page: Consist of 64KB blocks of memory
+1)  bits[31:16]: 	Large page base address, PA[31:16]
+2)  bits[15]: 		XN
+3)  bits[14:12]: 	TEX[2:0]
+4)  bits[11]: 		nG
+5)  bit[10]: 		S	
+6)  bit[9]: 		AP[2]
+7) 	bits[8:6]: 		SBZ
+8) 	bits[5:4]: 		AP[1:0]
+9) 	bits[3]: 		C
+10) bits[2]: 		B
+11) bits[1]:		0
+12) bits[0]:		1
+
+Small Page: Consist of 4KB blocks of memory
+1)  bits[31:12]: 	Small page base address, PA[31:12]
+2)  bits[15]: 		XN
+3)  bits[14:12]: 	
+4)  bits[11]: 		nG
+5)  bit[10]: 		S	
+6)  bit[9]: 		AP[2]
+7) 	bits[8:6]: 		TEX[2:0]
+8) 	bits[5:4]: 		AP[1:0]
+9) 	bits[3]: 		C
+10) bits[2]: 		B
+11) bits[1]:		1
+12) bits[0]:		XN	
+
+--------------------------------------------------------------------------------
+Memory attributes in the Short-descriptor translation table format descriptors
+--------------------------------------------------------------------------------
+
+Memory region attribute bits:
+--------------------------------
+1) TEX[2:0], C, B:
+
+
+2) XN bit: Execute-never
+-> Not present in a Page table entry
+
+The Execute-never bit. Determines whether the processor can execute software
+from the addressed region. 
+
+XN bit is 1:
+-> a Permission fault is generated if the processor attempts to execute an
+instruction fetched from the corresponding memory region.
+-> when using the Short-descriptor translation table format, the fault is
+generated only if the access is to memory in the Client domain.
+
+3) PXN bit, when supported
+The Privileged execute-never bit:
+
+No LPAE support: PXN in short-descriptor is optional
+With LPAE support: PXN must include in short-descriptor
+
+When the PXN bit is 1:
+-> a Permission fault is generated if the processor is executing at PL1 and
+attempts to execute an instruction fetched from the corresponding memory region.
+-> when using the Short-descriptor translation table format, the fault is
+generated only if the access is to memory in the Client domain.
+
+4) NS bit: Non-secure bit. 
+-> Not present in second-level descriptors
+
+-> The value of the NS bit in the first level Page table descriptor applies to
+all entries in the corresponding second-level translation table.
+
+If an implementation includes the Security Extensions, for memory accesses from
+Secure state, this bit specifies whether the translated PA is in the Secure or
+Non-secure address map.
+
+5) Domain: Domain field
+-> Not present in second-level descriptors
+-> The value of the Domain field in the first level Page table descriptor
+applies to all entries in the corresponding second-level translation table.
+-> contains only in first level Page table and section descriptors not in super
+section
+
+6) AP[2], AP[1:0]: Access Permissions bits 
+AP[0] can be configured as the Access flag, 
+-> not present in a Page table entry.
+-> present in 
+--> section bit[15], bit[11:10] :AP[2:0]
+--> super section bit[15], bit[11:10] : AP[2:0]
+--> small page bit[9], bit[5:4]: AP[2:0]
+--> large page bit[9], bit[5:4]: AP[2:0]
+
+-> Short-descriptor translation table format supports two options for 
+   defining the access permissions:
+• three bits, AP[2:0], define the access permissions
+  AP[2:0] Access model
+
+• two bits, AP[2:1], define the access permissions, and AP[0] can be used as an
+  Access flag.
+  AP[2:1] Access model
+
+SCTLR.AFE selects the access permissions option
+
+SCTLR.AFE: bit[29] Access flag enable. The possible values of this bit are:
+Value 0:
+-> In the translation table descriptors, AP[0] is an access permissions bit. 
+-> The full range of access permissions is supported. 
+-> No Access flag is implemented
+
+Value 1:
+-> In the translation table descriptors, AP[0] is the Access flag. 
+-> Only the simplified model for access permissions is supported.
+
+The Long-descriptor format always supports an Access flag bit in the translation
+table descriptors, and address translation using this format behaves as if
+SCTLR.AFE is set to 1, regardless of the value of that bit.
+
+TTBR0/TTBR1 
+-----------
+-> bits[31:20] : are shared between TTBR0 and TTBR1
+-> TTBCR.N specifies what is share between TTBR0 and TTBR1?
+-> if 
+TTBCR.N = 0: TTBR0 size is 16K   :  VA[31:20]  : TTBR1 is not used
+TTBCR.N = 1: TTBR0 size is 8KB   :  VA[30:20]  : TTBR1[31]
+TTBCR.N = 2: TTBR0 size is 4KB   :  VA[29:20]  : TTBR1[31:30]
+TTBCR.N = 3: TTBR0 size is 2KB   :  VA[28:20]  : TTBR1[31:29]
+TTBCR.N = 4: TTBR0 size is 1KB   :  VA[27:20]  : TTBR1[31:28]
+TTBCR.N = 5: TTBR0 size is 512B  :  VA[26:20]  : TTBR1[31:27]
+TTBCR.N = 6: TTBR0 size is 256B  :  VA[25:20]  : TTBR1[31:26]
+TTBCR.N = 7: TTBR0 size is 128B  :  VA[24:20]  : TTBR1[31:25]
+
+AP[2:1] Access Model (which model depends on SCTRL.AFE bit)
+--------------------
+AP[2]		AP[1]				Access
+disable 	enable 
+write 		unprivileged 
+access 		access 
+0 			0					Read/write, only at PL1
+0 			1 					Read/write, at any privilege level
+1 			0 					a Read-only, only at PL1
+1 			1 					Read-only, at any privilege level
+
+AP[2:0] Access Model
+--------------------
+AP[2] 	AP[1:0] PL1 and PL2 access 	Unprivileged access Description
+0 		00 		No access 			No access 			All accesses generate Permission faults
+		01 		Read/write 			No access 			Access only at PL1 or higher
+		10 		Read/write 			Read-only 			Writes at PL0 generate Permission faults
+		11 		Read/write 			Read/write 			Full access
+1		00 		- 					- 					Reserved
+		01 		Read-only 			No access 			Read-only, only at PL1 or higher
+		10 		Read-only 			Read-only 			Read-only at any privilege level
+		11 		Read-only 			Read-only 			Read-only at any privilege level
+
+Domains, Short-descriptor format only
+-------------------------------------
+-> A domain is a collection of memory regions. 
+-> The Short-descriptor translation table format supports 16 domains, 
+-> and requires the software that defines a translation table to assign each
+VMSA memory region to a domain.
+
+When using the Short-descriptor format:		
+• First-level translation table entries for Page tables and Sections include a
+  domain field.
+• Translation table entries for Supersections do not include a domain field. The
+  Short-descriptor format defines Supersections as being in domain 0.
+• Second-level translation table entries inherit a domain setting from the
+  parent first-level Page table entry.
+• Each TLB entry includes a domain field.
+
+-> The domain field specifies which of the 16 domains the entry is in, and 
+-> a two-bit field in the DACR defines the permitted access for each domain. 
+
+The possible settings for each domain are:
+1) No access: 
+Any access using the translation table descriptor generates a Domain fault
+
+2) Clients: 
+On an access using the translation table descriptor, the access permission
+attributes are checked. Therefore, the access might generate a Permission fault.
+
+3) Managers: 
+On an access using the translation table descriptor, the access permission
+attributes are not checked. Therefore, the access cannot generate a Permission
+fault.
+
+A single program might:
+• be a Client of some domains
+• be a Manager of some other domains
+• have no access to the remaining domains.
+
+The Long-descriptor translation table format does not support domains. When a
+stage of translation is using this format, all memory is treated as being in a
+Client domain, and the settings in the DACR are ignored.
+
+DACR, Domain Access Control Register:
+-------------------------------------
+-> In an implementation that includes the Large Physical Address Extension, this
+register has no function.
+
+The DACR bit assignments are:
+16 Domains:
+
+31 30 | 29 28 | 27 26 | 25 24 | 23 22 | 21 20 | 19 18 | 
+ D15  |  D14  |  D13  |  D12  |  D11  |  D10  |  D9   | 
+
+17 16 | 15 14 | 13 12 | 11 10 | 9   8 | 7   6 | 5   4 | 3  2 | 1  0 |
+ D8   |   D7  |   D6  |   D5  |  D4   |   D3  |   D2  |  D1  |  D0  |
+
+0b00 	No access. 	Any access to the domain generates a Domain fault.
+0b01 	Client. 	Accesses are checked against the permission bits in the
+					translation tables.
+0b10 	Reserved, 	effect is UNPREDICTABLE .
+0b11 	Manager. 	Accesses are not checked against the permission bits in the
+					translation tables.

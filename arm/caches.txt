@@ -49,7 +49,7 @@ memory controller. It process a request by dividing the address of the request
 into three fields: tag field, set index field(line), data index field(offset).
 -> controller uses "set index" portion of the address to locate the cache line
 -> controller then checks valid bit to determine cache line is active
--> and compares cache tag to the tad field of the address.
+-> and compares cache tag to the tag field of the address.
 -> Cache Hit/Miss:
 if comparison succeeds it is hit else it is miss.
 -> on cache miss: 
@@ -92,8 +92,8 @@ providede by the addition of a cache memory to a system.
 
 principle of locality of reference
 -----------------------------------
-This principle states that computer softeare programs frequently run small loops
-of code that repeatedlt operate on local section of data memory. The repeated
+This principle states that computer software programs frequently run small loops
+of code that repeatedly operate on local section of data memory. The repeated
 use of the same code or data in memory is the reason a cache improves
 performance.
 

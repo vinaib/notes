@@ -1,0 +1,199 @@
+--------------------------------------------------------------------------------
+Waitqueues
+--------------------------------------------------------------------------------
+-> have several uses in the kernel particularly for:
+--> interrupt handling, 
+--> process synchronization, and 
+--> timing
+-> Wait queues implement conditional waits on events:
+a process wishing to wait for a specific event places itself in the proper wait
+queue and relinquishes control.
+-> a wait queue represents a set of sleeping processes, which are woken up by
+the kernel when some condition becomes true.
+
+-> Wait queues are implemented as doubly linked lists
+-> wait queue is identified by a wait queue head
+
+struct __wait_queue_head {
+	spinlock_t lock;
+	struct list_head task_list;
+};
+typedef struct __wait_queue_head wait_queue_head_t;
+
+Why lock field?
+---------------
+-> wait queues are modified by interrupt handlers as well as by major kernel
+functions, the doubly linked lists must be protected from concurrent accesses.
+-> Synchronization is achieved by the lock spin lock in the wait queue head
+-> task_list field is the head of the list of waiting processes.
+
+Elements of a wait queue list are of type wait_queue_t :
+--------------------------------------------------------
+struct __wait_queue {
+	unsigned int flags;
+	struct task_struct * task;
+	wait_queue_func_t func;
+	struct list_head task_list;
+};
+typedef struct __wait_queue wait_queue_t;
+
+-> Each element in the wait queue list represents a sleeping process
+-> if two or more processes are waiting for exclusive access to some resource to
+be released, it makes sense to wake up just one process in the wait queue.
+-> Thus, there are two kinds of sleeping processes:
+
+--> exclusive process:	
+- denoted by value 1 in the flags field of the corresponding wait queue element
+- are selectively woken up by the kernel
+- A process waiting for a resource that can be granted to just one process at a
+  time is a typical exclusive process.
+
+--> non exclusive process:
+- denoted by value 0 in the flags field of the corresponding wait queue element
+- are always woken up by the kernel when the event occurs
+- Processes waiting for an event that may concern any of them are nonexclusive
+
+static decalaration:
+--------------------
+DECLARE_WAIT_QUEUE_HEAD(name)
+- statically declares a new wait queue head variable called name and initializes
+  its lock and task_list fields.
+
+file: include/linux/wait.h
+--------------------------
+#define DECLARE_WAIT_QUEUE_HEAD(name) \
+	struct wait_queue_head name = __WAIT_QUEUE_HEAD_INITIALIZER(name)
+
+//Ref unlocked value is 0
+#define __ARCH_SPIN_LOCK_UNLOCKED	{ { 0 } }
+
+#define __WAIT_QUEUE_HEAD_INITIALIZER(name) {					\
+	.lock		= __SPIN_LOCK_UNLOCKED(name.lock),			\
+	.head		= { &(name).head, &(name).head } }
+
+dynamic allocate:
+-----------------
+init_waitqueue_head(wq_head);
+
+#define init_waitqueue_head(wq_head)						\
+	do {									\
+		static struct lock_class_key __key;				\
+										\
+		__init_waitqueue_head((wq_head), #wq_head, &__key);		\
+	} while (0)
+
+extern void __init_waitqueue_head(
+		struct wait_queue_head *wq_head, 
+		const char *name, 
+		struct lock_class_key *);
+
+File: kernel/sched/wait.c
+-------------------------
+void __init_waitqueue_head(
+		struct wait_queue_head *wq_head, 
+		const char *name, 
+		struct lock_class_key *key)
+{
+	spin_lock_init(&wq_head->lock);
+	lockdep_set_class_and_name(&wq_head->lock, key, name);
+	INIT_LIST_HEAD(&wq_head->head);
+}
+
+EXPORT_SYMBOL(__init_waitqueue_head);
+
+Waitqueue_entry: initializer for wait_queue_t struct:
+-----------------------------------------------------
+The init_waitqueue_entry(q,p) function initializes a wait_queue_t structure q as
+follows:
+
+q->flags = 0;
+q->task = p;
+q->func = default_wake_function
+
+The nonexclusive process p will be awakened by default_wake_function(), which is
+a simple wrapper for the try_to_wake_up().
+
+Alternatively, the DEFINE_WAIT macro declares a new wait_queue_t variable and
+initializes it with the descriptor of the process currently executing on the
+CPU.
+
+Handling wait queues 
+---------------------
+- The add_wait_queue() function inserts a nonexclusive process in the first
+  position of a wait queue list.
+
+- The add_wait_queue_exclusive() function inserts an exclusive process in the
+  last position of a wait queue list.
+
+- remove_wait_queue() function removes a process from a wait queue list
+
+- waitqueue_active() function checks whether a given wait queue list is empty.
+ 
+Example:
+The sleep_on() function operates on the current process:
+void sleep_on(wait_queue_head_t *wq)
+{
+	wait_queue_t wait;
+	init_waitqueue_entry(&wait, current);
+	current->state = TASK_UNINTERRUPTIBLE;
+	add_wait_queue(wq,&wait); /* wq points to the wait queue head */
+	schedule();
+	remove_wait_queue(wq, &wait);
+}
+- The function sets the state of the current process to TASK_UNINTERRUPTIBLE
+- inserts it into the specified wait queue.
+- invokes the scheduler, which resumes the execution of another process.
+- When the sleeping process is awakened, 
+- the scheduler resumes execution of the sleep_on() function, 
+- which removes the process from the wait queue.
+
+interruptible_sleep_on(): similar to above function, except that state is
+						  assigned to TASK_INTERRUPTIBLE.
+
+sleep_on_timeout(): 
+interruptible_sleep_on_timeout():
+-	functions are similar to the previous ones, but they also allow the caller
+	to define a time interval after which the process will be woken up by the
+	kernel.
+-   they invoke the schedule_timeout() function instead of schedule()
+
+Introduced in Linux 2.6:
+offer yet another way to put the current process to sleep in a wait queue.
+- prepare_to_wait() , 
+- prepare_to_wait_exclusive() , and 
+
+- finish_wait() function:
+  kernel must remove the wait queue element from the list after the waiting
+  process has been awakened
+
+
+Wakeup:
+-------
+The kernel awakens processes in the wait queues, putting them in the
+TASK_RUNNING state, by means of one of the following macros:
+wake_up, 
+wake_up_nr, 
+wake_up_all ,
+wake_up_interruptible ,
+wake_up_interruptible_nr ,
+wake_up_interruptible_all ,
+wake_up_interruptible_sync, and 
+wake_up_locked.
+
+void wake_up(wait_queue_head_t *q)
+{
+	struct list_head *tmp;
+	wait_queue_t *curr;
+	list_for_each(tmp, &q->task_list) {
+	curr = list_entry(tmp, wait_queue_t, task_list);
+	if (curr->func(curr, TASK_INTERRUPTIBLE|TASK_UNINTERRUPTIBLE,
+	0, NULL) && curr->flags)
+	break;
+	}
+}
+
+Because all nonexclusive processes are always at the beginning of the doubly
+linked list and all exclusive processes are at the end, the function always
+wakes the nonexclusive processes and then wakes one exclusive process, if any
+exists.
+

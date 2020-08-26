@@ -110,5 +110,62 @@ directives.
 It is worth noting that GNU Assembler now supports UAL through use of the
 .syntax directive, though it might not be identical syntax to the ARM tools
 assembler.
+--------------------------------------------------------------------------------
+Mixing C and assembly code
+--------------------------------------------------------------------------------
+- We can also insert assembly code into our C code, through the GCC asm statement
+  asm("nop");
+
+- Inline assembly code has a different syntax to regular assembly code. 
+- Registers and constants have to be specified differently, if they refer to C expressions.  
+
+example:
+asm volatile (“usad8 %0, %1, %2” : “=r” (result): “r”(value1), “r”(value2));
+
+General format:
+asm volatile (assembler instructions : output operands (optional) : input operands (optional) : clobbered registers (optional) );
+
+- The colons divide the statement up into parts
+- The first part “ usad8 %0, %1, %2 ” is the actual assembly instruction
+- The second part is an (optional) list of output values from the sequence. If more than one output is required, commas are used to separate the entries.
+- Third part is an (optional) list of input values for the sequence, with the same format as the output
+
+Important Note:
+- If you don’t specify an output operand for an assembly sequence, it is quite likely that the C compiler optimizer will decide that it is not serving any useful purpose and optimize it away! 
+- A way to avoid this is to use the "volatile attribute" that tells GCC not to optimize the sequence.
+
+- In the actual assembly language statement, operands are referenced by a percent sign followed by the symbolic name in square brackets
+- The symbolic name references the item with the same name in either the input or output operand list
+- This name is completely distinct from any other symbol within your C code
+- Alternatively, the name can be omitted and the operand can be specified using a percent sign followed by a digit indicating the position of the operand in the list (that is, %0 , %1 ... %9 )
+- fourth part is (optional)	called the clobber list. 
+Clobber list:
+- This enables you to specify to the compiler what will be changed by the assembly code. 
+- We can specify registers (for example, R0), the condition code flags (cc) or memory.
+
+Constraints, When passing parameters to inline assembly statements:
+- constraint “r“: specifies one of the registers R0-R15 in ARM state
+- constraint “m”: is a memory address and 
+- constraint “w”: is a single precision floating-point register
+Constraints are preceded by "=, +, &"
+- "=" indicate a write-only output operand
+- "+" for a read/write output operand
+- "&" modifier instructs the compiler not to select any register for the output value that is used for any of the input operands
+
+attribute __naked:
+TODO
+Example:
+void __naked get_fiq_regs(struct pt_regs *regs)
+
+
+attribute asmlinkage:
+TODO: instructs that input parameters in stack, not in registers
+Example:
+TODO
+
+
+
+
+
 
 

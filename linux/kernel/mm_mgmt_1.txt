@@ -1,0 +1,898 @@
+1. zone page frame allocator: 
+   alloc_page/ alloc_pages/
+   __get_free_page/__get_free_pages/
+   get_zeroed_page/__get_dma_pages/
+   free_pages/free_page/
+   __free_pages/__free_page
+
+   above API calls __rmqueue() to allocate pages
+   free_pages_bulk() / free_hot_page() /free_cold_page()
+
+2. Slab Allocator: groups objects into caches
+    cache: stores objects of same type
+
+	caches -> slabs -> page frames(one/more)
+	
+	caches: 
+		general cahces: used only by the slab allocator for its own purposes
+			kmem_cache, cache_cache, 13 malloc_size
+			- setup by kmem_cache_init() during sys init
+
+		specific caches: 
+			- created by the kmem_cache_create()
+			- destroy by kmem_cache_destroy()
+			- destroy all slabs in cache kmem_cache_shrink()
+
+		struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+					unsigned long,
+					void (*)(void *));
+		#define KMEM_CACHE(__struct, __flags) kmem_cache_create(#__struct,\
+				sizeof(struct __struct), __alignof__(struct __struct),\
+				(__flags), NULL)
+
+		void kmem_cache_destroy(struct kmem_cache *);
+		int kmem_cache_shrink(struct kmem_cache *);
+
+
+		creating new slab:
+			-void * kmem_getpages(kmem_cache_t *cachep, int flags)
+
+		Releasing a slab from cache:
+			-void kmem_freepages(kmem_cache_t *cachep, void *addr)
+
+		Allocating a Slab Object
+			- kmem_cache_alloc(kmem_cache_t *cachep, int flags)
+			: New objects may be obtained
+
+		Freeing a Slab Object:
+			- void kmem_cache_free(kmem_cache_t *cachep, void *objp)
+			- function releases an object previously allocated by the slab
+			  allocator
+
+3. General Purpose objects: kmalloc()
+		- uses kmem_cache_alloc() on general purpose caches
+
+--------------------------------------------------------------------------------
+Introduction
+--------------------------------------------------------------------------------
+Some portion of RAM is permanently assigned to the kernel and used to store both
+the kernel code and the static kernel data structures.
+
+Q) How to determine this size of permanent mapping?
+
+- The remaining part of the RAM is called dynamic memory.
+
+Page Frame Management:
+Memory Area Management:
+	handles physically contiguous memory areas
+
+Noncontiguous Memory Area Management	
+	handles noncontiguous memory areas
+
+--------------------------------------------------------------------------------
+Page Frame Management:
+--------------------------------------------------------------------------------
+Linux adopts the 4KB page frame size as the standard memory allocation unit
+
+Q) why?
+- transfers will be efficient if you use smaller size
+- effect of fragmentation is lesser
+
+--------------------------------------------------------------------------------
+The Page Fault exceptions
+--------------------------------------------------------------------------------
+- issued by the paging circuitry
+
+When?
+- Either the page requested exists but the process is not allowed to address it
+- the page does not exist
+
+Handling exception:
+- When page does not exist: 
+  the memory allocator must find a free 4 KB page frame and assign it to the
+  process.
+--------------------------------------------------------------------------------
+Page Descriptors: status of each page frame
+struct page { } defined in include/linux/mm_types.h
+--------------------------------------------------------------------------------
+1) current status of each page frame:  Like
+- contains pages that belongs to process or kernel code/kernel data
+- page frame in dynamic memory is free
+
+2) Each physical page/frame in the system has a struct page associated with it
+
+3) mem_map arr: All page descriptors are stored in the mem_map array
+
+4) size of struct page is 36 bytes long on BBB board
+
+5) virt_to_page(addr) macro yields the address of the page descriptor associated
+   with the linear address addr
+
+6) pfn_to_page(pfn) macro yields the address of the page descriptor associated
+   with the page frame having number pfn.
+
+7) virt_to_phys(x)
+
+8) phys_to_virt(x)	
+
+9) 	
+
+Q) How to display all page frames and their address?
+Q) How to traverse mem_map array? How to determine its size/entries in array?
+--------------------------------------------------------------------------------
+struct page:  members
+--------------------------------------------------------------------------------
+1) ul		flags 	   ;Array of flags. Also encodes the zone number to which
+					   ;the page frame belongs.
+
+2) atomic_t _count     ;Page frame’s reference counter.
+
+3) atomic_t _mapcount ;Number of Page Table entries that refer to the page frame
+
+4) ul 	private	;
+
+5) struct address_space * mapping
+
+6) ul index
+
+7) struct list_head lru
+
+
+_count:
+- A usage reference counter for the page. 
+- If it is set to - 1, the corresponding page frame is free and can be assigned
+  to any process or to the kernel itself.
+- If it is set to a value greater than or equal to 0, the page frame is assigned
+   to one or more processes or is used to store some kernel data structures. 
+- The page_count() function returns the value of the _count field increased by
+  one, that is, the number of users of the page.
+
+flags:
+- Includes up to 32 flags 
+--------------------------------------------------------------------------------
+Non-Uniform Memory Access (NUMA) model
+Node - Zones - 
+--------------------------------------------------------------------------------
+Multiple Nodes:
+- in which the access times for different memory locations from a given CPU may
+  vary.
+- The physical memory of the system is partitioned in several nodes
+- The time needed by a given CPU to access pages within a single node is the
+  same
+- The physical memory inside each node can be split into several zones  
+- Each node has a descriptor of type pg_data_t
+- All node descriptors are stored in a singly linked list, pgdat_list.
+--------------------------------------------------------------------------------
+Uniform Memory Access model (UMA)
+--------------------------------------------------------------------------------
+Single Node:
+- if NUMA support is not compiled in the kernel
+- Linux makes use of a single node that includes all system physical memory
+- pgdat_list variable points to a list consisting of a single element
+--------------------------------------------------------------------------------
+Memory Zones
+--------------------------------------------------------------------------------
+Q) Why Zones?
+
+- In an ideal computer architecture, a page frame is a memory storage unit that
+  can be used for anything.
+
+- In real computer architectures have hardware constraints, like
+-- DMA processors for old ISA buses have a strong limitation: 
+   they are able to address only the first 16 MB of RAM.
+-- In modern 32-bit computers with lots of RAM, the CPU cannot directly access
+   all physical memory because the linear address space is too small.
+
+To cope with these two limitations, Linux 2.6 partitions the physical memory of
+every memory node into three zones:
+
+- ZONE_DMA: Contains page frames of memory below 16 MB
+
+- ZONE_NORMAL: Contains page frames of memory at and above 16 MB and below 896MB
+
+-ZONE_HIGHMEM: Contains page frames of memory at and above 896 MB
+
+The ZONE_DMA and ZONE_NORMAL zones include the “normal” page frames that can be
+directly accessed by the kernel through the linear mapping in the fourth
+gigabyte of the linear address space.
+
+Zone Highmem On 32bit:
+ZONE_HIGHMEM zone includes page frames that cannot be directly accessed by the
+kernel through the linear mapping in the fourth gigabyte of linear address
+space.
+
+Zone Highmem on 64 bit:
+The ZONE_HIGHMEM zone is always empty on 64-bit architectures
+--------------------------------------------------------------------------------
+zone descriptor, zone_table array
+--------------------------------------------------------------------------------
+- Each memory zone has its own descriptor
+- zone_table array: This array is initialized at boot time with the addresses of
+  all zone descriptors of all memory nodes.
+- pages_min field of the zone descriptor stores the number of reserved page frames
+  inside the zone.  
+- pages_low field is always set to 5/4 of the value of pages_min , and 
+- pages_high is always set to 3/2 of the value of pages_min 
+--------------------------------------------------------------------------------
+GFP_ATOMIC
+--------------------------------------------------------------------------------
+- when handling an interrupt or when executing code inside a critical region
+  a kernel control path should issue atomic memory allocation requests using
+  GFP_ATOMIC flag.
+- An atomic request never blocks
+- if there are not enough free pages the allocation simply fails
+- kernel reserves a pool of page frames for atomic memory allocation requests to
+  be used only on low-on-memory conditions.
+- The amount of the reserved memory (in kilobytes) is stored in the
+  min_free_kbytes variable  
+
+- reserved pool size = sqrt(16 × directly mapped memory) (kilobytes)  
+- Initially min_free_kbytes cannot be lower than 128 and greater than 65,536
+- ZONE_DMA and ZONE_NORMAL memory zones contribute to the reserved memory
+  with a number of page frames proportional to their relative sizes
+
+- ZONE_NORMAL zone is eight times bigger than ZONE_DMA  
+- seven-eighths of the page frames will be taken from ZONE_NORMAL and one-eighth
+  from ZONE_DMA.
+--------------------------------------------------------------------------------
+zoned page frame allocator
+--------------------------------------------------------------------------------
+- The kernel subsystem that handles the memory allocation requests for groups of
+  contiguous page frames is called the zoned page frame allocator.
+
+zone allocator:
+---------------
+- The component named “zone allocator” receives the requests for allocation and
+  deallocation of dynamic memory.
+
+The Buddy System Algorithm:  
+---------------------------
+- Inside each zone, page frames are handled by a component named “buddy system”  
+
+The Per-CPU Page Frame Cache:
+-----------------------------
+- To get better system performance, a small number of page frames are kept in
+  cache to quickly satisfy the allocation requests for single page frames.  
+--------------------------------------------------------------------------------
+Requesting and releasing page frames
+--------------------------------------------------------------------------------
+# six slightly different functions and macros:
+
+- order: request 2 order contiguous page frames
+
+1) alloc_pages(gfp_mask, order)
+2) alloc_page(gfp_mask)
+- returns the address of the descriptor of the first allocated page frame
+
+3)__get_free_pages(gfp_mask, order)
+4) __get_free_page(gfp_mask)	
+- returns the linear address of the first allocated page.
+
+5) get_zeroed_page(gfp_mask)
+- page frame filled with zeros
+
+6) __get_dma_pages(gfp_mask, order)	
+- get page frames suitable for DMA
+
+1) __free_pages(page, order)
+2) free_pages(addr, order)
+3) __free_page(page)
+4) free_page(addr)	
+--------------------------------------------------------------------------------
+Descriptors
+--------------------------------------------------------------------------------
+# contig_page_data node descriptor feilds
+- node_zonelists is an array of lists of zone descriptors
+
+--------------------------------------------------------------------------------
+Kernel Mappings of High-Memory Page Frames
+--------------------------------------------------------------------------------
+On 32bit Machines:
+- Page frames above the 896 MB boundary are not generally mapped in the fourth
+  gigabyte of the kernel linear address spaces.
+
+- kernel is unable to directly access them
+
+On 64bit Machines:
+- on 64-bit hardware platforms, because the available linear address space is
+  much larger than the amount of RAM that can be installed.
+
+- in short, the ZONE_HIGHMEM zone of these architectures is always empty
+
+On 32bit + LPAE/PAE:
+- 
+
+variable "high_memory": (32bit m/c)
+- variable that holds linear address that corresponds to the end of the directly
+  mapped physical memory, and thus to the beginning of the high memory.
+- set to 896 MB  
+
+High Memory Page frames:
+- Page frames above the 896 MB boundary are not generally mapped in the fourth
+  gigabyte of the kernel linear address spaces.
+- kernel is unable to directly access them
+
+Page allocator for High Memory frames:
+- implies that each page allocator function that returns the linear address of
+  the assigned page frame doesn’t work for highmemory page frames.
+- following allocators doesn't work on high memory, "ZONE_HIGHMEM".
+  __get_free_pages(gfp_mask, order)
+  __get_free_page(gfp_mask, order) 
+
+Solution to use High memory page frames:
+- allocation of high-memory page frames is done only through 
+  alloc_pages() and
+  alloc_page()
+- the functions return the linear address of the page descriptor of the first
+  allocated page frame
+- These linear addresses always exist.
+- as all page descriptors are allocated in low memory once during the kernel
+  initialization
+- part of the last 128 MB of the kernel linear address space is dedicated to
+  mapping high-memory page frames. (1024 - 896) 
+- this kind of mapping is temporary	
+- recycling linear addresses the whole high memory can be accessed, although at
+  different times.
+
+Three different mechanisms to map page frames in high memory:
+- permanent kernel mapping
+- temporary kernel mapping
+- noncontiguous memory allocation
+
+- Of course, none of these techniques allow addressing the whole RAM
+  simultaneously.
+- As kernel have 128MB of linear address space to map high memory, when PAE is
+  supported systems can have upto 64GB of RAM  
+--------------------------------------------------------------------------------
+Permanent kernel mappings TODO  : kmap, kunmap
+--------------------------------------------------------------------------------
+Q) What are the uses of permanent kernel mappings? where it is used?
+Why it is used? will it be there in 64bit machines?
+
+- Establishing a permanent kernel mapping may block the current process
+- this happens when no free Page Table entries exist that can be used as
+  “windows” on the page frames in high memory, which means 128MB linear address
+  space is used.
+
+- a permanent kernel mapping cannot be established in interrupt handlers and
+  deferrable functions.
+
+- Permanent kernel mappings allow the kernel to establish long-lasting mappings
+  of high-memory page frames into the kernel address space.
+
+- They use a dedicated PageTable in the master kernel page tables.
+
+Data structures:
+- pkmap_page_table: variable stores the address of this Page Table
+- LAST_PKMAP: 		macro yields the number of entries.
+- PKMAP_BASE:		starting linear addresses
+- pkmap_count:		array includes LAST_PKMAP counters, one for each entry of
+					the pkmap_page_table.
+- page_address_htable: 
+. To keep track of the association between high memory page frames and linear
+addresses induced by permanent kernel mappings.
+. This table contains one page_address_map data structure for each page frame in
+high memory that is currently mapped.
+. In turn, this data structure contains a pointer to the page descriptor and the
+linear address assigned to the page frame.
+
+three cases based on "pkmap_count" counter:
+- counter is 0
+	The corresponding Page Table entry does not map any high-memory page frame
+- counter is 1
+	The corresponding Page Table entry does not map any high-memory page frame,
+	but it cannot be used because the corresponding TLB entry has not been
+	flushed since its last usage.
+- counter is n (greater than 1)
+	The corresponding Page Table entry maps a high-memory page frame, which is
+	used by exactly n −1 kernel components.
+
+File: arch/arm/include/asm/page.h
+#define PAGE_SHIFT		12
+#define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
+#define PAGE_MASK		(~((1 << PAGE_SHIFT) - 1))
+
+File: arch/arm/include/asm/highmem.h
+#define PKMAP_BASE			(PAGE_OFFSET - PMD_SIZE) //PMD_SIZE = (1<<21)
+							0xC0000000 - 0x200000    //(3GB - 2M)
+							0xBFE00000               //Starting linear address
+#define LAST_PKMAP			PTRS_PER_PTE
+#define LAST_PKMAP_MASK		(LAST_PKMAP - 1)
+#define PKMAP_NR(virt)		(((virt) - PKMAP_BASE) >> PAGE_SHIFT)
+#define PKMAP_ADDR(nr)		(PKMAP_BASE + ((nr) << PAGE_SHIFT))
+#define kmap_prot			PAGE_KERNEL
+
+File: arch/arm/include/asm/pgtable-2level.h
+#define PTRS_PER_PTE		512 (2 ^ 9)
+#define PTRS_PER_PMD		1   (2 ^ 0)
+#define PTRS_PER_PGD		2048 (2 ^ 11) //offset (2 ^ 12) 
+
+#define PMD_SHIFT		21
+#define PGDIR_SHIFT		21
+#define PMD_SIZE		(1UL << PMD_SHIFT)
+#define PMD_MASK		(~(PMD_SIZE-1))
+#define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK		(~(PGDIR_SIZE-1))
+
+File: arch/arm/include/asm/pgtable-3level.h
+#define PTRS_PER_PTE		512 (2 ^ 9)
+#define PTRS_PER_PMD		512 (2 ^ 9) 
+#define PTRS_PER_PGD		4   (2 ^ 2) ;offset (2 ^ 12)
+
+#define PMD_SHIFT		21
+#define PMD_SIZE		(1UL << PMD_SHIFT)
+#define PMD_MASK		(~((1 << PMD_SHIFT) - 1))
+#define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK		(~((1 << PGDIR_SHIFT) - 1))
+
+File: arch/arm64/include/asm/pgtable-hwdef.h
+See for arch64
+--------------------------------------------------------------------------------
+Helper Functions or macros
+--------------------------------------------------------------------------------
+page_address()
+- function returns the linear address associated with the page frame	
+- or NULL if the page frame is in high memory and is not mapped
+- parameter: a page descriptor pointer page
+  Distinguishes two cases:
+  1) - page frame is not in high memory: 
+  	 - PG_highmem flag clear
+     - the linear address always exists 
+	 - obtained by computing the page frame index, converting it into a PA
+	 - finally deriving the linear address corresponding to the PA.
+	 __va((unsigned long)(page - mem_map) << 12)
+
+  2) - page frame is in high memory:
+     - PG_highmem flag set
+	 - function looks into the page_address_htable hash table.
+	 - if page frame is found in the hash table
+	 - page_address() returns its linear address
+	 - otherwise NULL
+
+kmap()
+- function establishes a permanent kernel mapping
+- code:
+	void * kmap(struct page * page)
+	{
+		if (!PageHighMem(page))
+			return page_address(page);
+
+		return kmap_high(page);
+	}
+
+kmap_high()
+- function is invoked if the page frame really belongs to high memory
+- code:
+	void * kmap_high(struct page * page)
+	{
+		unsigned long vaddr;
+
+		spin_lock(&kmap_lock);
+
+		vaddr = (unsigned long) page_address(page);
+		if (!vaddr)
+			vaddr = map_new_virtual(page);
+
+		pkmap_count[(vaddr-PKMAP_BASE) >> PAGE_SHIFT]++;
+		spin_unlock(&kmap_lock);
+
+		return (void *) vaddr;
+	}
+- function gets the kmap_lock spin lock to protect the Page Table against
+  concurrent accesses in multiprocessor systems.
+- no need to disable the interrupts, because kmap() cannot be invoked by
+  interrupt handlers and deferrable functions
+- checks whether the page frame is already mapped by invoking page_address()  
+- If not, the function invokes map_new_virtual() 
+- kmap_high() increases the counter corresponding to the linear address of the
+  page frame to take into account the new kernel component that invoked this
+  function.
+- releases the kmap_lock spin lock and returns the linear address that maps the
+  page frame.
+
+map_new_virtual()
+- function essentially executes two nested loops	
+- insert the page frame physical address into an entry of pkmap_page_table
+- add an element to the page_address_htable hash table
+- code:
+	map_new_virtual() 
+	{
+		for (;;) 
+		{
+			int count;
+			DECLARE_WAITQUEUE(wait, current);
+
+			for (count = LAST_PKMAP; count > 0; --count) 
+			{
+				last_pkmap_nr = (last_pkmap_nr + 1) & (LAST_PKMAP - 1);
+				if (!last_pkmap_nr) 
+				{
+					flush_all_zero_pkmaps();
+
+					count = LAST_PKMAP;
+				}
+				if (!pkmap_count[last_pkmap_nr]) 
+				{
+					unsigned long vaddr = PKMAP_BASE + 
+						(last_pkmap_nr << PAGE_SHIFT);
+
+					set_pte(&(pkmap_page_table[last_pkmap_nr]),
+							mk_pte(page, _ _pgprot(0x63)));
+
+					pkmap_count[last_pkmap_nr] = 1;
+
+					set_page_address(page, (void *) vaddr);
+
+					return vaddr;
+				}
+			}
+			current->state = TASK_UNINTERRUPTIBLE;
+			add_wait_queue(&pkmap_map_wait, &wait);
+
+			spin_unlock(&kmap_lock);
+
+			schedule();
+
+			remove_wait_queue(&pkmap_map_wait, &wait);
+			
+			spin_lock(&kmap_lock);
+
+			if (page_address(page))
+				return (unsigned long) page_address(page);
+		}
+	}
+- inner loop: 
+  the function scans all counters in pkmap_count until it finds a null value.
+- large if block runs when an unused entry is found in pkmap_count
+- block determines the linear address corresponding to the entry
+- creates an entry for it in the pkmap_page_table Page Table, 
+- set_pte: write a given value into a page table entry
+- sets the count to 1 because the entry is now used
+- set_page_address():
+  to insert a new element in the page_address_htable hash table
+- returns the linear address
+
+- If the inner loop cannot find a null counter in pkmap_count 
+- the map_new_virtual() function blocks the current process until some other
+  process releases an entry of the pkmap_page_table Page Table.
+- This is achieved by inserting current in the pkmap_map_wait wait queue
+- setting the current state to TASK_UNINTERRUPTIBLE
+- invoking schedule() to relinquish the CPU
+- Once the process is awakened, the function checks whether another process has
+  mapped the page by invoking page_address().
+- if no other process has mapped the page yet, the inner loop is restarted.  
+
+kunmap():
+- function destroys a permanent kernel mapping established previously by kmap()
+- page is in the high memory zone, it invokes the kunmap_high()	
+
+kunmap_high():
+- code:
+	void kunmap_high(struct page * page)
+	{
+		spin_lock(&kmap_lock);
+		if ((--pkmap_count[((unsigned long)page_address(page) - PKMAP_BASE)
+					>>PAGE_SHIFT]) == 1)
+			if (waitqueue_active(&pkmap_map_wait))
+				wake_up(&pkmap_map_wait);
+
+		spin_unlock(&kmap_lock);
+	}	
+- The expression within the brackets computes the index into the pkmap_count
+  array from the page’s linear address.
+- counter is decreased and compared to 1
+- A successful comparison indicates that no process is using the page
+- function can finally wake up processes in the wait queue filled by
+  map_new_virtual() if any
+
+--------------------------------------------------------------------------------
+temporary kernel mappings (kmap_atomic, kunmap_atomic)
+--------------------------------------------------------------------------------
+- Establishing a temporary kernel mapping never blocks the current process.
+- very few temporary kernel mappings can be established at the same time
+- kernel control path that uses a temporary kernel mapping must ensure that no
+  other kernel control path is using the same mapping.
+
+- This implies that the kernel control path can never block, otherwise another
+  kernel control path might use the same window to map some other high memory
+  page.
+- they can be used inside interrupt handlers and deferrable functions, because
+  requesting a temporary kernel mapping never blocks the current process.
+  
+- Every page frame in high memory can be mapped through a window in the kernel
+  address space—namely, a Page Table entry that is reserved for this purpose.
+- number of windows reserved for temporary kernel mappings is quite small
+- Each CPU has its own set of 13 windows
+- Each window is represented by the enum km_type data structure. 
+- Each symbol defined in this data structure—
+  such as KM_BOUNCE_READ , KM_USER0 ,or KM_PTE0 —identifies the linear address of a window.
+
+- Each symbol in km_type , except the last one, is an index of a fix-mapped
+  linear address.
+- The enum fixed_addresses data structure includes the symbols FIX_KMAP_BEGIN
+  and FIX_KMAP_END ; the latter is assigned to the index FIX_KMAP_BEGIN +
+  (KM_TYPE_NR * NR_CPUS)-1.
+- In this manner, there are KM_TYPE_NR fix-mapped linear addresses for each CPU
+  in the system.
+- To establish a temporary kernel mapping, the kernel invokes the kmap_atomic()
+  function, which is essentially equivalent to the following code:
+
+Code:  
+	void * kmap_atomic(struct page * page, enum km_type type)
+	{
+		enum fixed_addresses idx;
+		unsigned long vaddr;
+
+		current_thread_info()->preempt_count++;
+
+		if (!PageHighMem(page))
+			return page_address(page);
+
+		idx = type + KM_TYPE_NR * smp_processor_id();
+
+		vaddr = fix_to_virt(FIX_KMAP_BEGIN + idx);
+
+		set_pte(kmap_pte-idx, mk_pte(page, 0x063));
+
+		__flush_tlb_single(vaddr);
+
+		return (void *) vaddr;
+	}  
+- The type argument and the CPU identifier retrieved through smp_processor_id()
+  specify what fix-mapped linear address has to be used to map the request
+  page.
+
+- The function returns the linear address of the page frame if it doesn’t belong
+  to high memory.
+- otherwise, it sets up the Page Table entry corresponding to the fix-mapped
+  linear address with the page’s physical address
+
+kunmap_atomic():
+- To destroy a temporary kernel mapping	
+-------------------------------------------------------------------------------- 
+The Buddy System Algorithm
+-------------------------------------------------------------------------------- 
+- must deal with a well-known memory management problem called external
+  fragmentation.
+
+External Fragmentation:
+- frequent requests and releases of groups of contiguous page frames of
+  different sizes may lead to a situation in which several small blocks of free
+  page frames are “scattered” inside blocks of allocated page frames.
+- As a result, it may become impossible to allocate a large block of contiguous
+  page frames, even if there are enough free pages to satisfy the request.
+
+Q) What’s wrong with modifying the Page Tables?  
+frequent Page Table modifications lead to higher average memory access times,
+because they make the CPU flush the contents of the TLB's.
+
+- The technique adopted by Linux to solve the external fragmentation problem is
+  based on the well-known buddy system algorithm.
+  - 11 lists of memory areas
+  - All free page frames are grouped into 11 lists of blocks that contain groups
+  of 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, and 1024 contiguous page frames,
+  respectively.
+  - The largest request of 1024 page frames corresponds to a chunk of 4 MB of
+  contiguous RAM.
+  - The physical address of the first page frame of a block is a multiple of the
+  group size
+
+  Example showing how the algorithm works:
+  Allocation:
+  - Assume there is a request for a group of 256 contiguous page frames(1MB)
+  - algorithm checks first to see whether a free block in the 256-page-frame
+    list exists.
+  - If there is no such block, the algorithm looks for the next larger block
+  - a free block in the 512-page-frame list. 
+  - If such a block exists, the kernel allocates 256 of the 512 page frames to
+    satisfy the request and inserts the remaining 256 page frames into the list
+	of free 256-page-frame blocks.
+  - If there is no free 512-page block.
+  - the kernel then looks for the next larger block (free 1024 block). 
+  - If such a block exists, it allocates 256 of the 1024 page frames
+  - inserts the first 512 of the remaining 768 page frames into the list of free
+    512-page frame blocks.
+  - inserts the last 256 page frames into the list of free 256-page-frame blocks. 
+  - If the list of 1024-page-frame blocks is empty, the algorithm gives up and
+    signals an error condition.
+  Release:
+  - kernel attempts to merge pairs of free buddy blocks of size b together into
+    a single block of size 2b
+  - Two blocks are considered buddies if:
+  -- Both blocks have the same size, say b.
+  -- They are located in contiguous physical addresses
+  -- The physical address of the first page frame of the first block is a
+     multiple of 2 × b × 2^12 .
+  -- The algorithm is iterative; if it succeeds in merging released blocks, it
+     doubles b and tries again so as to create even bigger blocks.
+
+Data structures:
+- file: include/linux/mmzone.h
+- Linux 2.6 uses a different buddy system for each zone
+- the first handles the page frames suitable for ISA DMA, 
+- the second handles the “normal” page frames, and 
+- the third handles the high memory page frames
+
+Zone descriptor:
+- is struct zone?
+- trace regarding mem_map array. I do not see any array as per zones. Rather I
+  see node_mem_map in struct zone -> struct pgdat_list in mmzone.h file
+Zone descriptor: free_area:
+- An array consisting of eleven elements of type free_area
+- one element for each group size. 
+- The array is stored in the free_area field of the zone descriptor  
+Description:
+- Let us consider the k th element of the free_area array in the zone descriptor
+- which identifies all the free blocks of size 2 ^ k
+- The free_list field of this element is the head of a doubly linked circular
+  list that collects the page descriptors associated with the free blocks of 2^k
+  pages.
+- More precisely, this list includes the page descriptors of the starting page
+  frame of every block of 2^k free page frames; the pointers to the adjacent
+  elements in the list are stored in the lru field of the page descriptor.
+- Besides the head of the list, the k th element of the free_area array includes
+  also the field nr_free. which specifies the number of free blocks of size 2^k
+  pages.
+Allocating a block:
+__rmqueue():
+- function is used to find a free block in a zone
+- the function takes two arguments: the address of the zone descriptor, order
+- function assumes that the caller has already disabled local interrupts 
+- and acquired the zone->lock spin lock
+- starting with the list for the requested order 
+- and continuing if necessary to larger orders
+- If the loop terminates, no suitable free block has been found, 
+- so __ rmqueue( ) returns a NULL value
+- Otherwise, a suitable free block has been found;
+Freeing a block:
+- __free_pages_bulk( ) function implements the buddy system strategy for freeing
+  page frames.
+- It uses three basic input parameters
+  - page
+  - zone
+  - order
+--------------------------------------------------------------------------------
+The Per-CPU Page Frame Cache
+-------------------------------------------------------------------------------- 
+- each memory zone defines a per-CPU page frame cache
+- Each per-CPU cache includes some pre-allocated page frames to be used for
+  single memory requests issued by the local CPU.
+- there are two caches for each memory zone and for each CPU
+  - a hot cache: which stores page frames whose contents are likely to be
+    included in the CPU’s hardware cache.
+  - a cold cache.
+Data structure:
+- per_cpu_pageset -> stored in the pageset field of the memory zone descriptor
+  - array includes one element for each CPU
+  - two per_cpu_pages descriptors
+    - one for the hot cache
+	- one for the cold cache
+
+The kernel monitors the size of the both the hot and cold caches by using two
+water marks:
+- if the number of page frames falls below the low watermark
+- the kernel replenishes the proper cache by allocating batch single page frames
+  from the buddy system
+- if the number of page frames rises above the high watermark, the kernel
+  releases to the buddy system batch page frames in the cache.
+
+Allocating per-CPU page frame cache:
+buffered_rmqueue():
+- function allocates page frames in a given memory zone
+- address of the memory zone descriptor
+- the order of the memory allocation request order
+- the allocation flags gfp_flags
+- __GFP_COLD: page frame from cold cache
+
+Releasing to the per-CPU page frame caches:
+free_hot_page(), free_cold_page():
+- release a single page frame to a per-CPU page frame cache
+--------------------------------------------------------------------------------
+The Zone Allocator
+--------------------------------------------------------------------------------
+- zone allocator is the frontend of the kernel page frame allocator
+- This component must locate a memory zone that includes a number of free page
+  frames large enough to satisfy the memory request
+- the zone allocator must satisfy several goals
+- It should protect the pool of reserved page frames
+- It should trigger the page frame reclaiming algorithm when memory is scarce
+- It should preserve the small, precious ZONE_DMA memory zone
+- __alloc_pages() function, which is the core of the zone allocator	
+- alloc_pages macro ends up invoking the _ _alloc_pages() function
+- _ _alloc_pages() function scans every memory zone included in the zonelist
+	for (i = 0; (z=zonelist->zones[i]) != NULL; i++) 
+	{
+		if (zone_watermark_ok(z, order, ...)) 
+		{
+			page = buffered_rmqueue(z, order, gfp_mask);
+
+			if (page)
+				return page;
+		}
+	}	
+Releasing a group of page frames:
+- All kernel macros and functions that release page frames rely on the
+  __free_pages() function.
+
+--------------------------------------------------------------------------------
+macros: virt_to_page
+--------------------------------------------------------------------------------
+#define PAGE_OFFSET 0xC0000000
+
+/* PAGE_SHIFT determines the page size */
+#define PAGE_SHIFT		12
+#define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
+#define PAGE_MASK		(~((1 << PAGE_SHIFT) - 1))
+
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
+
+
+#define virt_to_pfn(kaddr) (__pa(kaddr) >> PAGE_SHIFT)
+
+#define virt_to_pfn(kaddr) \
+	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
+	 PHYS_PFN_OFFSET)
+
+
+#define virt_to_pfn(kaddr) \
+	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
+	 PHYS_PFN_OFFSET)
+
+#define page_to_pfn __page_to_pfn
+
+#define pfn_to_page __pfn_to_page
+
+File: include/asm-generic/memory_model.h
+#define __pfn_to_page(pfn)	(mem_map + ((pfn) - ARCH_PFN_OFFSET))
+#define __page_to_pfn(page)	((unsigned long)((page) - mem_map) + \
+				 ARCH_PFN_OFFSET)
+
+File: arch/arm/include/asm/memory.h, contains all important macros
+#define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
+
+#define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
+
+--------------------------------------------------------------------------------
+virt_to_phys
+--------------------------------------------------------------------------------
+
+#define PHYS_OFFSET	PLAT_PHYS_OFFSET
+
+/*
+ * PLAT_PHYS_OFFSET is the offset (from zero) of the start of physical
+ * memory.  This is used for XIP and NoMMU kernels, and on platforms that don't
+ * have CONFIG_ARM_PATCH_PHYS_VIRT. Assembly code must always use
+ * PLAT_PHYS_OFFSET and not PHYS_OFFSET.
+ */
+#define PLAT_PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
+
+
+static inline phys_addr_t virt_to_phys(const volatile void *x)
+{
+	return __virt_to_phys((unsigned long)(x));
+}
+
+static inline phys_addr_t __virt_to_phys(unsigned long x)
+{
+	return (phys_addr_t)x - PAGE_OFFSET + PHYS_OFFSET;
+}
+
+#define __pa(x)			__virt_to_phys((unsigned long)(x))
+--------------------------------------------------------------------------------
+phys_to_virt
+--------------------------------------------------------------------------------
+static inline void *phys_to_virt(phys_addr_t x)
+{
+	return (void *)__phys_to_virt(x);
+}
+
+static inline unsigned long __phys_to_virt(phys_addr_t x)
+{
+	return x - PHYS_OFFSET + PAGE_OFFSET;
+}
+
+#define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+#define pfn_to_kaddr(pfn)	__va((phys_addr_t)(pfn) << PAGE_SHIFT)
+

@@ -1,0 +1,240 @@
+--------------------------------------------------------------------------------
+Memory Hierarchy
+--------------------------------------------------------------------------------
+Processor -> L1 Cache -> L2 Cache -> L3 SRAM/DRAM/ROM/FLash
+
+--------------------------------------------------------------------------------
+Memory Attributes
+--------------------------------------------------------------------------------
+-> ARMV7 memory system architectures provide mechanisms to split memory into
+	different regions.
+-> Each region has specific:
+--> memory types:
+---> Normal Memory
+---> Device Memory
+---> Strongly Ordered Memory
+
+--> memory attributes:
+---> Shareability:
+----> OSH
+----> NSH
+----> ISH
+----> SH
+
+---> Cacheability: 
+----> Non Cacheable
+----> Write-Through
+----> Write-Back
+----> Inner Cache
+----> Outer Cache
+----> cache allocation hint attributes
+
+--------------------------------------------------------------------------------
+Notes on Cache Allocation Hint attributes
+--------------------------------------------------------------------------------
+the ARMv7 memory attributes include 
+cacheability and cache allocation hint attributes. In most implementations, 
+these are combined into a single attribute,that is one of:
+• Non-cacheable
+• Write-Through Cacheable
+• Write-Back Write-Allocate Cacheable
+• Write-Back no Write-Allocate Cacheable.
+
+The exception to this is an ARMv7-A implementation that includes the 
+Large Physical Address Extension and is using the 
+Long-descriptor translation table format. 
+
+In this case, the translation table entry for any Cacheable region assigns that 
+region both a Read-Allocate and a Write-Allocate hint. 
+
+Each hint is either Allocate or Do not allocate.
+
+-> A Cacheable region with both no Read-Allocate and no Write-Allocate hints is
+	not the same as a Non-cacheable region.
+-> A Non-cacheable region has coherency guarantees for observers outside its
+	Shareability domains, that do not apply for a region that is Cacheable, no
+	Read-Allocate, no Write-Allocate.
+
+--------------------------------------------------------------------------------
+VMSA: Virtual Memory System Architecture
+--------------------------------------------------------------------------------
+-> In a VMSA implementation, the translation tables define the virtual memory
+	regions, and the attributes for each region.
+
+-> Depending on its translation regime: 
+	an access is subject to one or two stages of translation. 
+	For an access that requires two stages of translation, 
+	the attributes from each stage of translation are combined to obtain the final
+	region attribute.
+--------------------------------------------------------------------------------
+Levels of cache
+--------------------------------------------------------------------------------
+-> Before ARMv7:
+--> the architecturally-defined cache control mechanism covers only a single
+	level of cache.
+--> support for other levels of cache is IMPLEMENTATION DEFINED
+
+-> In Armv7:
+--> the architecturally-defined cache control mechanism covers multiple levels
+of cache, upto a maximum of 7 levels of cache
+
+--------------------------------------------------------------------------------
+Branch predictors
+--------------------------------------------------------------------------------
+-> Branch predictors typically use a form of cache to hold branch target data
+
+--------------------------------------------------------------------------------
+Cache identification
+--------------------------------------------------------------------------------
+The ARMv7 cache identification consists of a set of registers that describe the
+implemented caches that are under the control of the processor:
+
+VMSA:
+-> CTR: 	Cache Type Register (single)
+----------------------------------------
+   Defines:
+— the minimum line length of any of the instruction caches
+— the minimum line length of any of the data or unified caches
+— the cache indexing and tagging policy of the Level 1 instruction cache
+Refer: B4-1556
+MRC p15, 0, <Rt>, c0, c0, 1 ; Read CTR into Rt
+
+-> CLIDR: 	Cache Level ID Register (single)
+--------------------------------------------
+   Defines:
+— the type of cache implemented at a each cache level, up to the maximum of
+  seven levels
+— the Level of Coherence for the caches
+— the Level of Unification for the caches
+Refer: B4-1530
+MRC p15, 1, <Rt>, c0, c0, 1 ; Read CLIDR into Rt
+
+-> CSSELR:	Cache Size Selection Register (single)
+--------------------------------------------------
+— selects the cache level and cache type of the current Cache Size Identification
+Register.
+Refer: B4-1555
+MRC p15, 2, <Rt>, c0, c0, 0 ; Read CSSELR into Rt
+MCR p15, 2, <Rt>, c0, c0, 0 ; Write Rt to CSSELR
+
+-> CCSIDR: 	Cache Size Identification Register (each implemented cache)
+-----------------------------------------------------------------------
+   Defines:
+— whether the cache supports 
+	Write-Through, 
+	Write-Back, 
+	Read-Allocate and
+	Write-Allocate.
+— the number of sets, associativity and line length of the cache.   
+Refer: B4-1528
+MRC p15, 1, <Rt>, c0, c0, 0 ; Read current CCSIDR into Rt
+--------------------------------------------------------------------------------
+Imp points from cache behavior
+--------------------------------------------------------------------------------
+-> For data accesses, any memory location that is marked as Normal Shareable is
+	guaranteed to be coherent with all masters in that shareability domain.
+
+-> If the cache is disabled, it is guaranteed that no new allocation of memory
+	locations into the cache occurs.	
+
+-> If the cache is enabled, it is guaranteed that no memory location that does
+	not have a Cacheable attribute is allocated into the cache.
+
+-> All caches are disabled at reset
+
+-> When it is enabled, the state of a cache is UNPREDICTABLE if the appropriate
+initialization routine has not been performed.
+
+-> Same set of rules applies to Branch predictor and TLB
+--------------------------------------------------------------------------------
+Preloading Caches:
+PLD(Preload Data), PLI(Preload Instruction), PLDW(Preload Write) With caches:
+--------------------------------------------------------------------------------
+-> memory system hints provided by ARM ISA
+-> these instructions are implemented in the ARM and Thumb instruction sets.
+-> Multiprocessing Extensions add the PLDW instruction
+-> permit S/W to communicate the expected use of memory locations to the H/W
+-> typically use this information to bring the data/instr locations into caches
+-> Preload instructions are hints, and so implementations can treat them as NOPs
+-> these instruction does not cause a synchronous abort to occur.
+-> a memory operation performed as a result of one of these memory system hints
+	might trigger an asynchronous event, like:
+--> asynchronous aborts
+--> interrupts
+-> A PLD or PLDW instruction is guaranteed not to access Strongly-ordered or
+	Device memory.
+-> A PLI instruction is guaranteed not to cause any effect to the caches, or
+TLB, or memory, other than the effects that,for permission or other reasons, can
+be caused by the fetch resulting from changing the PC to the location specified
+by the PLI instruction with the same context and at the same privilege level.
+-> In a VMSA implementation, if all associated MMUs are disabled, a PLI
+instruction cannot access any memory location that cannot be accessed by
+instruction fetches.
+--------------------------------------------------------------------------------
+Cache lockdown
+--------------------------------------------------------------------------------
+-> Cache lockdown requirements can conflict with the management of hardware
+   coherency.
+-> in many systems, cache lockdown is inappropriate, so for the same reason
+-> in ARMv7 implementation:
+--> There is no requirement to support cache lockdown.
+--> If cache lockdown is supported, the mechanism is IMPLEMENTATION DEFINED
+--> CP15 c9 encodings are available for IMPLEMENTATION DEFINED cache lockdown
+    features.
+What is Cache lockdown?
+
+How it is useful?
+
+When it has to be used?
+
+Why cache lockdown is inappropriate?
+
+--------------------------------------------------------------------------------
+Cache enabling and disabling
+--------------------------------------------------------------------------------
+-> as ARMv7 the architecture defines the control of multiple levels of cache
+-> SCTLR.C enables or disables all data and unified caches, across all levels of
+	cache visible to the processor
+-> SCTLR.I enables or disables all instruction caches, across all levels of
+	cache visible to the processor
+-> If an implementation requires finer-grained control of cache enabling it can
+   implement control bits in the Auxiliary Control Register for this purpose.
+-> SCTLR{C, I} bits   
+-> When a C bit is set to 0, disabling the data or unified cache for the
+corresponding translation regime, data accesses and translation table walks from
+that translation regime to any Normal memory region behave as Non-cacheable for
+all levels of data or unified cache.
+-> When an I bit is set to 0, disabling the instruction cache for the
+corresponding translation regime, instruction accesses from that translation
+regime to any Normal memory region behave as Non-cacheable for all levels of
+instruction cache.
+--------------------------------------------------------------------------------
+Branch predictors(BP)
+--------------------------------------------------------------------------------
+-> Branch predictor hardware typically uses a form of cache to hold branch
+   information.
+-> branch predictor is not architecturally invisible.
+-> ARM arch permits this branch predictor H/W to be visible to S/W
+-> under some circumstances software must perform BP maintenance
+--> to avoid incorrect execution caused by out-of-date entries in the BP
+-> to ensure correct operation it might be necessary to invalidate BP entries
+--> on a change to instruction memory, or 
+--> a change of instruction address mapping
+-> an instruction cache invalidate all operation also invalidates all BP
+--------------------------------------------------------------------------------
+Requirements for branch predictor maintenance operations
+--------------------------------------------------------------------------------
+-> If, for a given translation regime and a given ASID and VMID as appropriate,
+	the instructions at any virtual address change, then branch predictor
+	maintenance operations must be performed to invalidate entries in the branch
+	predictor, to ensure that the change is visible to subsequent execution:
+
+-> BP maintenance is required of any following situations:
+--> enabling or disabling the MMU
+--> writing new mappings to the translation tables
+--> any change to the TTBR0, TTBR1, or TTBCR registers (unless accompanied by a
+	change to the ContextID or a change to the VMID)
+-->	changes to the VTTBR or VTCR registers (unless accompanied by a change to
+    the VMID).
+-> Failure to invalidate entries might give UNPREDICTABLE results, caused by the
+   execution of old branches.

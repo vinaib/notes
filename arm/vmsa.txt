@@ -1,0 +1,417 @@
+Point of coherency (PoC):
+-------------------------
+For a particular MVA, the point at which all agents that can access memory are
+	guaranteed to see the same copy of a memory location. For more information
+	see Terms used in describing the maintenance operations.
+
+Point of unification (PoU):
+---------------------------
+For a particular processor, the point by which the instruction and data caches
+	and the translation table walks of that processor are guaranteed to see the
+	same copy of a memory location. For more information see Terms used in
+	describing the maintenance operations on.
+
+In VMSAv7, a Memory Management Unit (MMU) controls:
+---------------------------------------------------
+-> address translation
+-> access permissions
+-> memory attribute determination and 
+-> checking for memory accesses made by the processor
+
+MMU is controlled by:
+---------------------
+-> System Control Registers (CP15) Including:
+1) defining the location of the translation tables	
+2) enabling and configuring the MMUs
+3) report any faults that occur on a memory access
+
+Abstract MMU stage model:
+-------------------------
+The model of having a separate MMU for each stage of memory control is an
+architectural abstraction. It describes only behavior
+
+VMSAv7 provides multiple stages of memory system control:
+-> for operation in Secure state, a single stage of memory system control
+--> Secure PL1&0 stage 1 MMU
+
+-> for operation in Non-secure state, up to two stages of memory system control
+--> when executing at PL2, a single stage of memory system control
+---> Non-secure PL2 stage 1 MMU
+
+--> when executing at PL1 or PL0, two stages of memory system control.
+---> Non-secure PL1&0 stage 1 MMU
+---> Non-secure PL1&0 stage 2 MMU
+
+The VMSA includes an enable bit for each MMU, as follows:
+---------------------------------------------------------
+----> SCTLR.M: System Control Register
+	  in the Secure copy of the register, 
+	  controls Secure PL1&0 stage 1 MMU
+
+----> SCTLR.M: System Control register
+	  in the Non-secure copy of the register, 
+	  controls Non-secure PL1&0 stage 1 MMU
+
+----> HSCTLR.M: Hyp System Control register
+		controls Non-secure PL2 stage 1 MMU
+
+----> HCR.VM: Hyp Confiugration Register
+		controls Non-secure PL1&0 stage 2 MMU
+
+Single Stage Model:
+-------------------
+Virtual Address(VA) -> Physical Address(PA)
+
+Two Stage Model:
+----------------
+Virtual Address(VA) -> Intermediate Physical Address(IPA) -> Physical
+Address(PA)
+
+The translation tables define the following properties:
+-------------------------------------------------------
+1) Access to the Secure or Non-secure address map:
+--> implementation includes the Security Extensions, 
+	the translation table entries determine whether an 
+
+--> access from Secure state accesses the:
+---> Secure address map or 
+---> Non-secure address map
+
+--> access from Non-secure state accesses the 
+---> Non-secure address map
+
+2) Memory access permission control:
+This controls whether a program is permitted to access a memory region. 
+For instruction and data access, the possible settings are:
+• no access
+• read-only
+• write-only
+• read/write.
+
+For instruction accesses:
+additional controls determine whether instructions can be fetched and executed
+from the memory region.
+
+If a processor attempts an access that is not permitted, a memory fault is
+signaled to the processor.
+
+3) Memory region attributes:
+These describe the properties of a memory region. 
+
+The top-level attribute, the Memory type, is one
+-> Strongly-ordered, 
+-> Device, or 
+-> Normal. 
+
+Device and Normal memory regions can have additional attributes.
+Device Memory:
+-------------------------------------------------------------------------------
+Memory type  Implementation includes LPAE a ?  Shareability  	Cacheability
+-------------------------------------------------------------------------------
+Strongly	  	- 								- 					NonCacheable
+Device 			Yes 							Outer Shareable 	NonCacheable
+Device 			No	 							Outer Shareable 	NonCacheable
+Device 			No  							Inner Shareable 	NonCacheable
+Device 			No  							Non   Shareable 	NonCacheable
+Normal			-								Outer Shareable		One of:
+Normal			-								Inner Shareable		NonCacheable
+Normal			-								Non   Shareable		WriteThrough
+																	WriteBack
+
+4) Address translation mappings: Translation regime:
+# Secure PL1&0 VA -> Secure PL1&0 stage 1 MMU -> PA, Secure or Non-secure
+# Non-secure PL2 VA -> Non-secure PL2 stage 1 MMU -> PA, Non-secure only
+# Non-secure PL1&0 VA -> Non-secure PL1&0 stage 1 MMU IPA -> 
+  Non-secure PL1&0 stage 2 MMU -> PA, Non-secure only
+--------------------------------------------------------------------------------
+Address types used in a VMSA description
+--------------------------------------------------------------------------------
+1) Virtual Address (VA):
+-> An address used in an instruction, as a data or instruction address, 
+	is a Virtual Address (VA).
+-> An address held in the PC, LR, or SP, is a VA.
+-> The VA map runs from zero to the size of the VA space. 
+	For ARMv7, the maximum VA space is 4GB, 
+	giving a maximum VA range of 0x00000000 - 0xFFFFFFFF.
+
+2) Modified Virtual Address (MVA): FCSE(Optional)
+-> implementation that implements and uses the FCSE, the FCSE takes a VA and
+	transforms it to an MVA.
+-> From ARMv6, ARM deprecates any use of the FCSE. The FCSE is:
+• OPTIONAL and deprecated in an ARMv7 implementation that does not include the
+	Multiprocessing Extensions.
+• Obsolete from the introduction of the Multiprocessing Extensions.
+
+3) Intermediate Physical Address (IPA):
+2 stage regime:	
+In a translation regime that provides two stages of address translation, 
+the IPA is the address after the stage 1 translation, and 
+is the input address for the stage 2 translation. 
+	
+1 stage regime:	
+In a translation regime that provides only one stage of address translation, the
+IPA is identical to the PA.
+
+In ARM VMSA implementations, only one stage of address translation is provided:
+• if the implementation does not include the Virtualization Extensions
+• when executing in Secure state
+• when executing in Hyp mode.
+
+4) Physical Address (PA):
+The address of a location in the Secure or Non-secure memory map. That is, an
+output address from the processor to the memory system.
+--------------------------------------------------------------------------------
+Address spaces in a VMSA implementation
+--------------------------------------------------------------------------------
+-> The ARMv7 architecture supports:
+• A VA address space of up to 32 bits, actual width is IMPLEMENTATION DEFINED
+
+• An IPA address space of up to 40 bits. The translation tables and associated
+	system control registers define the width of the implemented address space.
+
+-> If an implementation includes the Security Extensions, the address maps are
+defined independently for 
+Secure and 
+Non-secure operation, 
+providing two independent 40-bit address spaces, where:
+• a VA accessed from Non-secure state can only be translated to the Non-secure
+	address map.
+• a VA accessed from Secure state can be translated to either the Secure or the
+	Non-secure address map.
+
+-> The Large Physical Address Extension defines two translation table formats. 
+The Long-descriptor format gives:
+• access to the full 40-bit IPA or PA address space at a granularity of 4KB. 
+
+The Short-descriptor format gives:
+• access to a 32-bit PA address space at 4KB granularity.
+• Optionally, gives access to a 40-bit PA address space, but only at 16MB
+	granularity
+--------------------------------------------------------------------------------
+About address translation
+--------------------------------------------------------------------------------
+-> Address translation is the process of mapping one address type to another
+--> mapping VAs to IPAs
+--> mapping VAs to PAs
+
+Translation Table:
+A translation table defines the mapping from one address type to another.
+
+TTBR:
+A Translation table base register indicates the start of a translation table.
+
+For PL1&0 stage 1 translations, the mapping can be split between two tables:
+-> one controlling the lower part of the VA space
+--> one table defines the mapping for operating system and I/O addresses, that
+	do not change on a context switch.
+
+-> the other controlling the upper part of the VA space
+--> a second table defines the mapping for application-specific addresses, and
+	therefore might require updating on a context switch.
+
+-> VMSAv7 without the Security Extensions:	
+--> Supports only a single PL1&0 stage 1 MMU. 
+--> Operation of this MMU can be split between two sets of translation tables
+--> defined by TTBR0 and TTBR1, and controlled by TTBCR.
+
+-> VMSAv7 with Security Extensions but without Virtualization Extensions:
+--> Supports only the Secure PL1&0 stage 1 MMU and Non-secure PL1&0 stage 1 MMU.
+--> Operation of each of these MMUs can be split between two sets of translation
+	tables, defined by:
+---> Secure copies of TTBR0 and TTBR1 and 
+---> Non-secure copies of TTBR0 and TTBR1, and
+---> controlled by the 
+     Secure copy of TTBCR and 
+	 Non-secure copy of TTBCR
+
+-> VMSAv7 with Virtualization Extensions:
+   The implementation supports all of the MMUs, as follows:
+--> Secure PL1&0 stage 1 MMU:
+	Operation of this MMU can be split between two sets of translation tables,
+	defined by the Secure copies of TTBR0 and TTBR1, and controlled by the
+	Secure copy of TTBCR.
+
+--> Non-secure PL2 stage 1 MMU:
+	The HTTBR defines the translation table for this MMU, controlled by HTCR
+	HTTBR: Hyp Translation Table Base Register,
+	HTCR: Hyp Translation Control Register
+
+--> Non-secure PL1&0 stage 1 MMU:
+	Operation of this MMU can be split between two sets of translation tables,
+	defined by the Non-secure copies of TTBR0 and TTBR1 and controlled by the
+	Non-secure copy of TTBCR.
+
+--> Non-secure PL1&0 stage 2 control:
+	The VTTBR defines the translation table for this MMU, controlled by VTCR
+	VTTBR: Virtualization Translation Table Base Register
+	VTCR: Virtualization Translation Control Register
+
+Translation Table walk:
+-----------------------
+On a TLB miss, the VMSA must perform a translation table walk, and therefore
+must find the base address of the translation table to use for its lookup. A
+TTBR holds this address.
+
+-> A full translation table lookup is called a translation table walk.
+-> It is performed automatically by hardware, and 
+-> can have a significant cost in execution time.
+
+To support fine granularity of the VA to PA mapping, 
+a single input address to output address translation can require multiple
+accesses to the translation tables, 
+with each access giving finer granularity.
+
+Each access is described as a level of address lookup. The final level of the
+lookup defines:
+• the required output address
+• the attributes and access permissions of the addressed memory, classified as
+--> address map control:
+	Memory accesses from Secure state can access either the Secure or the
+	Non-secure address map.
+	Memory accesses from Non-secure state can only access the Non-secure address
+	map.
+
+--> access controls
+	Determine whether the processor, in its current state, can access the output
+	address that corresponds to the given input address. If not, an MMU fault is
+	generated and there is no memory access.
+
+--> region attributes
+	Are valid only for an output address that the processor, in its current
+	state, can access. The attributes define aspects of the required behavior of
+	accesses to the target memory region.
+
+TLB:
+----
+Translation Lookaside Buffers (TLBs) reduce the average cost of a memory access
+by caching the results of translation table walks. TLBs behave as caches of the
+translation table information, and the VMSA provides TLB maintenance operations
+for the management of TLB contents.
+
+Will it store all levels of translation tables?
+
+To reduce the software overhead of TLB maintenance:
+---------------------------------------------------
+1) the VMSA distinguishes between Kernel and Process
+--> Global pages and (TTBR0)
+--> Process-specific pages (TTBR1)
+
+2) ASID:
+The Address Space Identifier (ASID) identifies pages associated with a specific
+process and provides a mechanism for changing process-specific tables without
+having to maintain the TLB structures.
+
+3) Virtualization extensions:
+If an implementation includes the Virtualization Extensions:
+# the virtual machine identifier (VMID) identifies the current virtual machine,
+with its own independent ASID space.
+
+# The TLB entries include this VMID information, meaning TLBs do not require
+explicit invalidation when changing from one virtual machine to another, 
+		 
+# if the virtual machines have different VMIDs. For stage 2 translations, all
+translations are associated with the current VMID, and there is no concept of
+global entries.
+--------------------------------------------------------------------------------
+Enabling MMU
+--------------------------------------------------------------------------------
+1) No security extensions: has single MMU
+-> controlled by SCTLR.M
+-> On startup/reset SCTLR.M bit is reset, meaning MMU is disabled
+
+2) With Security extensions:
+-> PL1&0 stage 1 MMU enable bit SCTLR.M, is banked
+-> separate MMU enable bits for
+--> secure state
+--> non secure state
+-> On startup/reset, only the secure SCTLR.M resets to 0
+-> On startup/reset, non secure SCTLR.M is unknown
+
+3) With virtualization extensions:
+-> On startup/reset HSCTLR.M, Non Secure PL2 Stage 1 MMU, is unknown
+
+ARM strongly recommends that the PA and VA of any software that enables or
+disables an MMU are identical if that MMU controls address translations that
+apply to the software currently being executed.
+--------------------------------------------------------------------------------
+Translation tables
+--------------------------------------------------------------------------------
+VMSAv7 defines two alternative translation table formats:
+
+-> Short-descriptor format
+• Up to two levels of address lookup (doesnot mean always 2 levels)
+• 32-bit input addresses.
+• Output addresses of up to 40 bits.
+• Support for PAs of more than 32 bits by use of supersections, with 16MB
+  granularity
+• Support for No access, Client, and Manager domains.
+• 32-bit table entries.
+
+-> Long-descriptor format
+• Large Physical Address Extension adds support for this format.
+• Up to three levels of address lookup.(does not mean always three levels)
+• Input addresses of up to 40 bits, when used for stage 2 translations.
+• Output addresses of up to 40 bits.
+• 4KB assignment granularity across the entire PA range.
+• No support for domains, all memory regions are treated as in a Client domain.
+• 64-bit table entries.
+• Fixed 4KB table size, unless truncated by the size of the input address space.
+
+-> The Large Physical Address Extension is an OPTIONAL extension, but
+
+-> an implementation that includes the Virtualization Extensions must 
+   also include the Large Physical Address Extension.
+
+-> In an implementation that includes the Large Physical Address Extension, but
+not the Virtualization Extensions, the TTBCR.EAE bit indicates the current
+translation table format.
+TTBCR: Translation Table Base Control Register.Extended Address Enable
+EAE 0: 32bit translation system, Short-descriptor translation table format
+EAE 1: 40-bit translation system, Long-descriptor translation table format
+
+• the translation tables for the Secure PL1&0 stage 1 translations, 
+	and for the Non-secure PL1&0 stage 1 translations, can use 
+	either translation table format, and the TTBCR.EAE bit indicates 
+	the current translation table format
+
+• the translation tables for the Non-secure PL2 stage 1 translations, 
+	and for the Non-secure PL1&0 stage 2 translations, must use the 
+	Long-descriptor translation table format.
+
+-> The physical address of the base of the starting-level translation table is
+determined from the appropriate Translation table base register (TTBR)
+--------------------------------------------------------------------------------
+Short-descriptor translation table format	
+--------------------------------------------------------------------------------
+supports a memory map based on memory sections or pages:
+
+Supersections: 
+Consist of 16MB blocks of memory. Support for Supersections is optional, except
+that an implementation that includes the Large Physical Address Extension and
+supports more that 32 bits of Physical Address must also support Supersections
+to provide access to the entire Physical Address space.
+
+Sections:
+Consist of 1MB blocks of memory.
+
+Large pages:
+Consist of 64KB blocks of memory.
+
+Small pages:
+Consist of 4KB blocks of memory.
+
+When using the Short-descriptor translation table format, two levels of
+translation tables are held in memory:
+----------------------------------------------------------------------
+1) First-level table: (Section and Supersection)
+Holds first-level descriptors that contain the base address and
+• translation properties for a Section and Supersection
+• translation properties and pointers to a second-level table for a Large page
+	or a Small page.
+
+2) Second-level tables: (Large Pages and Small Pages)
+Hold second-level descriptors that contain the base address and translation
+properties for a Small page or a Large page. With the Short-descriptor format,
+second-level tables can be referred to as Page tables.
+
+A second-level table requires 1KByte of memory.

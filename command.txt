@@ -79,6 +79,30 @@ or create /etc/fstab or /etc/mtab and run mount -a
 sysfs			/sys				sysfs		defaults,noatime	0		0
 proc			/proc				proc		defaults			0		0
 debugfs			/sys/kernel/debug 	debugfs 	defaults			0		0
+
+ntfs filesystem mount in read write:
+------------------------------------
+References:
+[1]: https://itsfoss.com/solve-ntfs-mount-problem-ubuntu-windows-8-dual-boot/
+[2]: https://askubuntu.com/questions/1030000/how-to-enable-ntfs-write-support-on-mounted-partitions-in-ubuntu-18-04
+
+# Problem: my windows data partition mounts as readonly
+# Reason: Due to corrupt of ntfs filesystem
+# Solution: 
+unmount from nautilus ("file explorer")
+run "sudo ntfsfix /dev/sda2"
+mount from nautilus
+-> When it mounts are read only, check for correct partition from mount command
+and then run ntfsfix command on that partition.
+# problem 2: to mount other partition in read write which is SSD drive, where
+windows OS resides.
+# Reason: The fastboot feature in windows does not allow to mount in readwrite
+mode. During shutdown, windows will store state in SSD drive and does shutdown.
+Solution: Turn of this feature in windows
+
+
+
+
 --------------------------------------------------------------------------------
 VI
 --------------------------------------------------------------------------------
@@ -144,6 +168,7 @@ grep -l: --print-with-matches, prints the name of each file that has a match,
 	 instead of printing matching lines.
 grep -i: --ignore-case. 
 
+grep -rn --exclude-dir=".git" --exclude="tags" --exclude-dir="Documentation" --exclude-dir="scripts" --exclude-dir="tools" --exclude-dir="drivers" thread_info
 --------------------------------------------------------------------------------
 # grep -rl string1 somedir/ | xargs sed -i 's/string1/string2/g'
 --------------------------------------------------------------------------------
@@ -304,3 +329,5 @@ top -d 1
 sar -B
 
 vmstat 
+
+cat /proc/vmstat

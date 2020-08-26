@@ -1,5 +1,858 @@
 --------------------------------------------------------------------------------
-SoftIRQ's
+The kernel’s goal on Interrupt arrival:		
 --------------------------------------------------------------------------------
--> deferrable functions can be executed at unpredictable times
+# get the interrupt out of the way as soon as possible and (urgent part)
+# defer as much processing as it can. (deferrable part)
+# on arrival of data, it could simply mark the presence of data
+# give the processor back to whatever was running before
+# do the rest of the processing later, such as moving data into buffer
+
+# Nested Execution of Exception and Interrupt Handlers
+# As a result, the interrupt handlers must be coded so that the corresponding
+kernel control paths can be executed in a nested manner.
+# When the last kernel control path terminates:
+## kernel must be able to resume execution of the interrupted process
+## switch to another process if the interrupt signal has caused a rescheduling
+activity
+--------------------------------------------------------------------------------
+Interupts, Exceptions, Traps, Programmed Exceptions (as per Intel)
+--------------------------------------------------------------------------------
+# Interrupts
+1) Maskable interrupts
+-> masked interrupt is ignored by the control unit as long as it remains masked
+2) Non Maskable interrupts
+-> Nonmaskable interrupts are always recognized by the
+
+# Exceptions
+
+## Processor-detected exceptions
+-> Generated when the CPU detects an anomalous condition while executing an
+instruction.
+
+1) Faults
+-> Can generally be corrected
+-> once corrected, the program is allowed to restart with no loss of continuity
+-> saved value of eip is the address of the instruction that caused the fault
+-> hence same instruction is resumed when the exception handler terminates
+Eg: Page Fault Exception Handler
+
+2) Traps
+-> Reported immediately following the execution of the trapping instruction
+-> saved value of eip is the address of the instruction that should be executed
+after the one that caused the trap
+-> main use of traps is for debugging purposes
+
+3) Aborts
+-> A serious error occurred
+-> such as hardware failures and invalid values in system tables
+-> the control unit is in trouble
+-> it may be unable to store in the eip register the precise location of the
+instruction causing the exception.
+-> This handler has no choice but to force the affected process to terminate
+
+## Programmed exceptions/ traps/ software interrupts
+-> Occur at the request of the programmer
+-> triggered by int or int3 instructions
+-> Programmed exceptions are handled by the control unit as traps
+-> uses: implement system calls, notify a debugger of a specific event
+
+--------------------------------------------------------------------------------
+Programmable Interrupt Controller(PIC) Actions
+--------------------------------------------------------------------------------
+# Uniprocessor:
+the output line of the PIC(8259A) connected to the INTR pin the CPU
+
+1) Monitors the IRQ lines, checking for raised signals. 
+2) If two/more IRQ lines are raised, selects the one having the lower pin number
+3) Converts the raised signal received into a corresponding vector
+4) Stores the vector in an Interrupt Controller I/O port
+5) thus allowing the CPU to read it via the data bus
+6) Sends a raised signal to the processor INTR pin—that is, issues an interrupt
+7) Waits until the CPU acknowledges the interrupt signal by writing into one
+of the Programmable Interrupt Controllers (PIC) I/O ports.
+8) Clears the INTR line
+
+mapping between IRQs and vectors
+--------------------------------
+1) Intel’s default vector associated with IRQn is n+32
+2) why 32? as 80X86 has 20 different kinds of execeptions: below is answer
+3) The values from 20 to 31 are reserved by Intel for future development
+
+Intel Exceptions:
+-----------------
+# 	Exception 		Exception handler 				Signal
+0 	Divide error 	divide_error( ) 				SIGFPE
+1 	Debug 			debug( ) 						SIGTRAP
+2 	NMI 			nmi( ) 							None
+3 	Breakpoint 		int3( ) 						SIGTRAP
+4 	Overflow 		overflow( ) 					SIGSEGV
+5 	Bounds check 	bounds( ) 						SIGSEGV
+6 	Invalid opcode 	invalid_op( ) 					SIGILL
+7 	Device NA		device_not_available( ) 		None
+8 	Double fault 	doublefault_fn() 				None
+9 	CPS OVRRUN 		coprocessor_segment_overrun( ) 	SIGFPE
+10 	Invalid TSS 	invalid_TSS( ) 					SIGSEGV
+11 	S NT PSNT		segment_not_present( ) 			SIGBUS
+12 	SS fault 		stack_segment( ) 				SIGBUS
+13 	GP				general_protection( ) 			SIGSEGV
+14 	Page Fault 		page_fault( ) 					SIGSEGV
+15 	Intel-reserved 	None 							None
+16 	Flt-pt Err		coprocessor_error( ) 			SIGFPE
+17 	Alignment check alignment_check( ) 				SIGBUS
+18 	Machine check 	machine_check() 				None
+19 	SIMD flt pt 	simd_coprocessor_error() 		SIGFPE
+
+IRQ line enable/disable
+-----------------------
+1) PIC can be programmed to disable particular IRQ line
+2) Disabled interrupts are not lost
+3) the PIC sends them to the CPU as soon as they are enabled again
+4) Selective enable/disable feature is used by most interrupt handlers, because
+it allows them to process IRQs of the same type serially.
+5) The cli and sti assembly language instructions clears the IF flag of the
+eflags register, which disables all the maskable interrupts. This is global
+masking/unmasking of maskable interrupts.
+
+# Multiprocessor:
+I/O Advanced Programmable Interrupt Controller (I/O APIC):
+
+I/O APIC Model:
+---------------
+1) all microprocessors include a local APIC
+2) Each local APIC has: 
+-> 32-bit registers
+-> an internal clock
+-> a local timer device
+-> two additional IRQ lines:
+LINT0 and LINT1, reserved for local APIC interrupts.
+3) APIC BUS: 
+connects the “frontend” I/O APIC to the local APICs.
+4) I/O APIC: Multi-Apic system
+-> All local APICs are connected to an external I/O APIC
+-> I/O APIC consists of a set of 24 IRQ lines
+-> 24-entry Interrupt Redirection table
+-> programmable registers
+-> a message unit for sending and receiving APIC messages over APIC bus
+-> Interrupt priority:
+## each entry in the Redirection Table can be individually programmed to indicate 
+### the interrupt vector and priority
+### the destination processor, and
+### how the processor is selected.
+-> The information in the Redirection Table is used to translate each external
+IRQ signal into a message to one or more local APIC units via the APIC bus.
+5) The IRQ lines coming from the devices are connected to the I/O APIC, which
+therefore acts as a router with respect to the local APICs.
+6) multi-APIC system allows CPUs to generate interprocessor interrupts.
+7) When a CPU wishes to send an interrupt to another CPU, 
+-> it stores the interrupt vector and 
+-> the identifier of the target’s local APIC in the Interrupt Command Register
+(ICR) of its own local APIC. 
+-> A message is then sent via the APIC bus to the target’s local APIC
+-> which therefore issues a corresponding interrupt to its own CPU
+-> Interprocessor interrupts(IPIs) are a crucial component of the SMP arch
+-> IPI's are actively used by Linux to exchange messages among CPUs.
+
+Distribution:
+-------------
+Interrupt requests coming from external hardware devices can be distributed
+among the available CPUs in two ways:
+
+1) static distribution:
+-> The IRQ signal is delivered to the local APICs listed in the 
+corresponding Redirection Table entry. 
+-> The interrupt is delivered to 
+--> one specific CPU, 
+--> to a subset of CPUs, or 
+--> to all CPUs at once (broadcast mode).
+
+2) dynamic distribution
+-> The IRQ signal is delivered to the local APIC of the processor that is
+executing the process with the lowest priority.
+-> Every local APIC has a programmable task priority register (TPR)
+-> TPR: usedto compute the priority of the currently running process
+-> Intel expects this register to be modified in an kernel by each process switch.
+-> Arbitration: 
+--> If two or more CPUs share the lowest priority, the load is distributed
+between them using a technique called arbitration.
+--> Each CPU is assigned a different arbitration priority 
+ranging from 0 (lowest) to 
+15 (highest) in the arbitration priority register of the local APIC.
+--> Every time an interrupt is delivered to a CPU, its corresponding arbitration
+priority is automatically set to 0
+--> while the arbitration priority of any other CPU is increased
+--> When the arbitration priority register becomes greater than 15, it is set to
+the previous arbitration priority of the winning CPU increased by 1.
+--> interrupts are distributed in a round-robin fashion among CPUs with the same
+task priority.
+	
+--------------------------------------------------------------------------------
+Interrupt Descriptor Table (x86 specific)
+--------------------------------------------------------------------------------
+-> is a system table
+
+-> associates each interrupt or exception vector with the 
+   address of the corresponding interrupt or exception handler.
+
+   irq no -> irq handler
+
+-> The IDT format is similar to that of the GDT and the LDTs
+GDT: Global descriptor table
+LDT: Local descriptor table
+
+-> each entry in the table corresponds to interrupt or exception vector
+
+-> each entry is of 8 bytes
+
+-> 256 intrerrupts: 256 * 8 = 2048 bytes
+
+-> The idtr CPU register allows the IDT to be located anywhere in memory
+	(base address + its maximum length)
+
+-> It must be initialized before enabling interrupts by using the lidt assembly
+   language instruction.
+
+-> The IDT may include three types of descriptors
+--> Task Gate Descriptor:
+--->Includes the TSS selector of the process that must replace the current one
+	when an interrupt signal occurs.
+
+--> Interrupt Gate Descriptor:
+--->Includes the Segment Selector and 
+--->the offset inside the segment of an interrupt or exception handler
+--->While transferring control to the proper segment, the processor clears the
+	IF flag, thus disabling further maskable interrupts.
+
+--> Trap Gate Descriptor:
+--->Similar to an interrupt gate, except that while transferring control to the
+	proper segment, the processor does not modify the IF flag.
+
+# Linux uses:
+--------------
+-> interrupt gates to handle interrupts and 
+-> trap gates to handle exceptions.	
+
+--------------------------------------------------------------------------------
+Nested Execution of Exception and Interrupt Handlers
+--------------------------------------------------------------------------------
+when an I/O device raises an interrupt, the first instructions of the
+corresponding kernel control path are those that save the contents of the CPU
+registers in the Kernel Mode stack, while the last are those that restore the
+contents of the registers.
+
+Kernel control paths may be arbitrarily nested; an interrupt handler may be
+interrupted by another interrupt handler, thus giving rise to a nested execution
+of kernel control paths.
+
+As a result, the last instructions of a kernel control path that is taking care
+of an interrupt do not always put the current process back into User Mode: 
+
+if the level of nesting is greater than 1, these instructions will put into
+execution the kernel control path that was interrupted last, and the CPU will
+continue to run in Kernel Mode.
+
+-> interrupt handler must never block
+-> An interrupt handler may preempt both other interrupt handlers and exception
+   handlers
+-> Conversely, an exception handler never preempts an interrupt handler   
+-> interrupt handlers never perform operations that can induce page faults, and
+   thus, potentially, a process switch.
+
+-> no process switch can take place until an interrupt handler is running. 
+
+In fact, all the data needed to resume a nested kernel control path is stored in
+the Kernel Mode stack.
+
+Nested Exceptions: 
+-> most exceptions can occur only while the CPU is in User Mode 
+-> Page Fault is the only Exception which triggers in kernel mode
+-> at most two kernel control paths may be stacked, one on top of the other.
+-> the first one caused by a system call invocation
+-> the second one caused by a Page Fault
+
+--------------------------------------------------------------------------------
+Linux interleaves kernel control paths for two major reasons:
+--------------------------------------------------------------------------------
+1) To improve the throughput of programmable interrupt controllers and device
+   controllers.
+
+   Example:   
+	Assume that a device controller issues a signal on an IRQ line: the PIC
+	transforms it into an external interrupt, and then both the PIC and the
+	device controller remain blocked until the PIC receives an acknowledgment
+	from the CPU. Thanks to kernel control path interleaving, the kernel is able
+	to send the acknowledgment even when it is handling a previous interrupt.
+
+2) To implement an interrupt model without priority levels.
+
+--------------------------------------------------------------------------------
+Initializing the Interrupt Descriptor Table (x86)
+
+Blocking Illegal interrupts and exceptions simulated by User mode process via 
+int instruction:
+--------------------------------------------------------------------------------
+1) The int instruction allows a User Mode process to issue an interrupt signal
+that has an arbitrary vector ranging from 0 to 255.
+
+2) blocking is done by setting the DPL field of the particular Interrupt or Trap
+Gate Descriptor to 0.
+
+3) If the process attempts to issue one of these interrupt signals, the control
+unit checks the CPL value against the DPL field and issues a “General
+protection” exception.
+
+4) In a few cases, a User Mode process must be able to issue a programmed
+exception. To allow this, it is sufficient to set the DPL field of the
+corresponding Interrupt or Trap Gate Descriptors to 3.
+
+Privilege level 0: Kernel mode/Real mode
+Privilege level 3: user mode/Protected mode	
+
+--------------------------------------------------------------------------------
+Interrupt, System, Trap Gates (Linux version)
+Interrupt, Trap, Task (intel version)	
+--------------------------------------------------------------------------------
+1) Interrupt gate: DPL 0, set_intr_gate()
+-> An Intel interrupt gate that cannot be accessed by a User Mode process
+-> All Linux interrupt handlers are activated by means of interrupt gates
+-> all are restricted to Kernel Mode
+
+2) System gate: DPL 3, set_system_gate()
+-> An Intel trap gate that can be accessed by a User Mode process
+-> The three Linux exception handlers associated with the vectors 4, 5, and 128 
+   are activated by means of system gates, 
+-> so the three assembly language instructions can be issued in User Mode.
+   into
+   bound 
+   int $0x80 
+ 
+3) System interrupt gate: DPL 3, set_system_intr_gate()
+-> An Intel interrupt gate that can be accessed by a User Mode process
+-> The exception handler associated with the vector 3 is activated by means of 
+   a system interrupt gate, 
+-> so the assembly language instruction int3 can be issued in User Mode.
+
+4) Trap gate: DPL 0, set_trap_gate()
+-> An Intel trap gate that cannot be accessed by a User Mode process
+-> Most Linux exception handlers are activated by means of trap gates
+
+5) Task gate: DPL 0, set_task_gate()
+-> An Intel task gate that cannot be accessed by a User Mode process
+-> The Linux handler for the “Double fault” exception is activated by means of a
+   task gate.
+
+--------------------------------------------------------------------------------
+Preliminary Initialization of the IDT
+--------------------------------------------------------------------------------
+1) The IDT is initialized and used by the BIOS routines while the computer still
+   operates in Real Mode.
+
+2) Once Linux takes over, however, the IDT is moved to another area of RAM and
+   initialized a second time, because Linux does not use any BIOS routine.
+
+--------------------------------------------------------------------------------
+Exception handlers have a standard structure consisting of three steps:
+--------------------------------------------------------------------------------
+IMP:
+Most exceptions are handled simply by sending a Unix signal to the process that
+caused the exception. The action to be taken is thus deferred until the process
+receives the signal; as a result, the kernel is able to process the exception
+quickly.
+
+1. Save the contents of most registers in the Kernel Mode stack (in assembly).
+2. Handle the exception by means of a high-level C function.
+3. Exit from the handler by means of the ret_from_exception() function.
+4. the names of the C functions that implement exception handlers always consist
+   of the prefix do_ followed by the handler name.
+5. Most of these functions invoke the do_trap() function to store the hardware
+   error code and the exception vector in the process descriptor of current ,
+   and then send a suitable signal to that process:
+
+   current->thread.error_code = error_code;
+   current->thread.trap_no = vector;
+   force_sig(sig_number, current);
+6. The current process takes care of the signal right after the termination of
+   the exception handler. 
+7. The signal will be handled either in User Mode by the process’s own signal
+	handler (if it exists) or in Kernel Mode. In the latter case, the kernel
+	usually kills the process.
+8. The exception handler always checks whether the exception occurred in User
+	Mode or in Kernel Mode.
+9. If in kernel mode, is it due to an invalid argument passed to a system call. 
+	The Fix-up Code” defines how the kernel defends itself against invalid
+	arguments passed to system calls.
+10.	Any other exception raised in Kernel Mode is due to a kernel bug. 
+	the handler invokes the die( ) function, which prints the contents of all
+	CPU registers on the console (this dump is called kernel oops) and
+	terminates the current process by calling do_exit()
+11. When the C function that implements the exception handling terminates, the
+    code performs a jmp instruction to the ret_from_exception() function.
+--------------------------------------------------------------------------------
+Interrupt Handlers and Interrupt Service Routine (ISR) & Shared IRQ
+--------------------------------------------------------------------------------
+1. an I/O interrupt handler must be flexible enough to service several devices
+	at the same time.
+2. For instance, in PCI bus arch several devices may share the same IRQ line
+3. the same vector 43 is assigned to the USB port and to the sound card
+4. interrupt vector alone does not tell the whole story
+5. Interrupt handler flexibility is achieved in two distinct ways:
+IRQ sharing:
+(one pin of PIC is connected to two device contollers).
+-> The interrupt handler executes several interrupt service routines (ISRs)	
+-> Each ISR is a function related to a single device sharing the IRQ line
+-> Because it is not possible to know in advance which particular device issued
+the IRQ, each ISR is executed to verify whether its device needs attention.
+
+IRQ dynamic allocation:
+for Example: the IRQ line of the floppy device is allocated only when a user
+accesses the floppy disk device.
+the same IRQ vector may be used by several hardware devices even if they cannot
+share the IRQ line
+
+--------------------------------------------------------------------------------
+Linux divides the actions to be performed following an interrupt into 3 classes
+--------------------------------------------------------------------------------
+1. Critical:
+-> Critical actions are executed within the interrupt handler immediately, with
+   maskable interrupts disabled.
+-> Actions such as 
+--> acknowledging an interrupt to the PIC, 
+--> reprogramming the PIC
+--> the device controller, or
+--> updating data structures accessed by both the device and the processor. 
+
+2. Noncritical
+-> executed by the interrupt handler immediately, with the interrupts enabled
+-> Actions such as:
+--> updating data structures that are accessed only by the processor
+
+3. Noncritical deferrable
+-> Noncritical deferrable actions are performed by means of separate functions 
+--> softirq's
+--> Tasklets
+-> Actions such as:
+--> copying a buffer’s contents into the address space of a process
+--> These may be delayed for a long time interval without affecting the kernel
+    operations; the interested process will just keep waiting for the data.
+
+--------------------------------------------------------------------------------
+General function of I/O Handlers:
+--------------------------------------------------------------------------------
+1. Save the IRQ value and the register’s contents on the Kernel Mode stack.
+2. Send an acknowledgment to the PIC that is servicing the IRQ line, thus
+allowing it to issue further interrupts.
+3. Execute the interrupt service routines (ISRs) associated with all the devices
+that share the IRQ.
+4. Terminate by jumping to the ret_from_intr( ) address.
+
+Several descriptors are needed to represent 
+-> state of the IRQ lines and
+-> the functions to be executed when an interrupt occurs.
+--------------------------------------------------------------------------------
+Interrupt vectors in Linux (x86)
+--------------------------------------------------------------------------------
+
+Vector range 		Use
+------------------------------------------------------------
+0–19 (0x0–0x13) 	NMI and exceptions
+20–31 (0x14–0x1f) 	Intel-reserved
+32–127 (0x20–0x7f) 	External interrupts 
+128 (0x80) 			Programmed exception for system calls
+129–238(0x81–0xee) 	External interrupts 
+239 (0xef) 			Local APIC timer interrupt 
+240 (0xf0) 			Local APIC thermal interrupt 
+241–250(0xf1–0xfa) 	Reserved by Linux for future use
+251–253(0xfb–0xfd) 	Interprocessor interrupts
+254(0xfe) 			Local APIC error interrupt
+255(0xff) 			Local APIC spurious interrupt
+
+-> physical IRQs may be assigned any vector in the range 32–238.
+-> Linux uses vector 128 to implement system calls
+-> kernel must discover which I/O device corresponds to the IRQ number before
+   enabling interrupts.
+
+An example of IRQ assignment to I/O devices
+-------------------------------------------
+IRQ INT Hardware device
+0 	32 	Timer
+1 	33 	Keyboard
+2 	34 	PIC cascading
+3 	35 	Second serial port
+4 	36 	First serial port
+6 	38 	Floppy disk
+8 	40 	System clock
+10 	42 	Network interface
+11 	43 	USB port, sound card
+12 	44 	PS/2 mouse
+13 	45 	Mathematical coprocessor
+14 	46 	EIDE disk controller’s first chain
+15 	47 	EIDE disk controller’s second chain
+--------------------------------------------------------------------------------
+IRQ data structures
+--------------------------------------------------------------------------------
+# irq_desc_t descriptor: 
+-> Every interrupt vector has its own irq_desc_t descriptor
+
+# irq_desc array:
+-> All such descriptors are grouped together in the irq_desc array
+
+# interrupt array:
+	Each entry n of the interrupt array stores the address of the interrupt
+	handler for IRQn
+
+# hw_interrupt_type or
+# hw_irq_controller 
+	The data structure that defines a PIC object is called hw_interrupt_type 
+	(also called hw_irq_controller ).	
+
+# irq_stat array includes NR_CPUS
+-> entry of type irq_cpustat_t:
+--> includes a few counters and flags used by the kernel to keep track of what
+each CPU is currently doing
+
+# What is ihe initial value of depth and status filed?
+-> During system initialization, the init_IRQ() function sets 
+the status field of each IRQ main descriptor to IRQ_DISABLED.
+
+-> moreover init_IRQ( ) updates the IDT by replacing the interrupt gates set up
+by setup_idt() with new ones
+for (i = 0; i < NR_IRQS; i++)
+	if (i+32 != 128)
+		set_intr_gate(i+32,interrupt[i]);
+
+# irq line status:		
+-> The depth field and the IRQ_DISABLED flag of the irq_desc_t descriptor
+   specify whether the IRQ line is enabled or disabled.
+-> Every time the disable_irq() or disable_irq_nosync() function is invoked.
+-> the depth field is increased.
+-> conversly each invocation of the enable_irq() function decreases the field
+-> if depth becomes 0, the function enables the IRQ line and clears its
+   IRQ_DISABLED flag.
+
+# irq_desc_t descriptor: 
+
+Field 			Description
+----------------------------------------------------------------------
+handler 		Points to the PIC object(hw_irq_controller descriptor) 
+				that services the IRQ line.
+handler_data 	Pointer to data used by the PIC methods.
+action 			Identifies the interrupt service routines to be invoked 
+				when the IRQ occurs. The field points to the first 
+				element of the list of irqaction descriptors associated 
+				with the IRQ.
+status 			A set of flags describing the IRQ line status 
+depth 			Shows 0 if the IRQ line is enabled and a 
+				positive value if it has been disabled at least once
+irq_count 		Counter of interrupt occurrences on the IRQ line(diagnostic)
+irqs_unhandled 	Counter of unhandled interrupt occurrences on the IRQ line(diag) 
+lock 			A spin lock used to serialize the accesses to the 
+				IRQ descriptor and to the PIC
+
+--------------------------------------------------------------------------------
+The status of an IRQ line is described by the flags:
+--------------------------------------------------------------------------------
+Flag name 			Description
+--------------------------------------------------------------------------
+IRQ_INPROGRESS 		A handler for the IRQ is being executed.
+IRQ_DISABLED 		The IRQ line has been deliberately disabled 
+					by a device driver.
+IRQ_PENDING 		An IRQ has occurred on the line; its occurrence 
+					has been acknowledged to the PIC, but it has not
+					yet been serviced by the kernel.
+IRQ_REPLAY 			The IRQ line has been disabled but the previous 
+					IRQ occurrence has not yet been acknowledged
+					to the PIC.
+IRQ_AUTODETECT 		The kernel is using the IRQ line while performing 
+					a hardware device probe.
+IRQ_WAITING 		The kernel is using the IRQ line while performing 
+					a hardware device probe; moreover, the corresponding 
+					interrupt has not been raised.
+IRQ_LEVEL 			Not used on the 80×86 architecture.
+IRQ_MASKED 			Not used.
+IRQ_PER_CPU 		Not used on the 80×86 architecture.
+
+# Fields of the irqaction descriptor:
+Field name 		Description
+-------------------------------------------------------------------------------
+handler 		Points to the interrupt service routine for an I/O device. This
+				is the key field that allows many devices to share the same IRQ
+flags 			This field includes a few fields that describe the relationships
+				between the IRQ line and the I/O device.
+mask 			Not used.
+name 			The name of the I/O device (/proc/interrupts).
+dev_id 			A private field for the I/O device. Typically, it identifies the
+				I/O device itself (for instance, it could be equal to its major
+				and minor numbers; see the section “Device Files” in
+				Chapter 13), or it points to the device driver’s data.
+next 			Points to the next element of a list of irqaction descriptors.
+				The elements in the list refer to hardware devices that share
+				the same IRQ.
+irq 			IRQ line.
+dir 			Points to the descriptor of the /proc/irq/n directory associated
+				with the IRQn.
+
+# Flags of the irqaction descriptor:
+Flag name	 		Description
+---------------------------------------------------------------------------
+SA_INTERRUPT 		The handler must execute with interrupts disabled.
+SA_SHIRQ 			The device permits its IRQ line to be shared with other
+					devices.
+SA_SAMPLE_RANDOM 	The device may be considered a source of events that occurs
+					randomly; 
+					it can thus be used by the kernel random number generator. 
+					(Users can access this feature by taking random numbers from
+					 the /dev/random and /dev/urandom device files.)
+
+# struct hw_interrupt_type:
+let’s assume that our computer is a uniprocessor with two 8259A PICs, 
+which provide 16 standard IRQs. 
+In this case, the handler field in each of the 16 irq_desc_t descriptors 
+points to the i8259A_irq_type variable, which describes the 8259A PIC. 
+
+This variable is initialized as follows:
+contains pointers to six different functions used to program the PIC
+
+struct hw_interrupt_type i8259A_irq_type = {
+.typename		= "XT-PIC",
+.startup		= startup_8259A_irq,
+.shutdown		= shutdown_8259A_irq,
+.enable			= enable_8259A_irq,
+.disable		= disable_8259A_irq,
+.ack			= mask_and_ack_8259A,
+.end			= end_8259A_irq,
+.set_affinity 	= NULL
+};
+
+# Fields of the irq_cpustat_t structure:
+Field name 			Description
+-----------------------------------------------------------------------
+__softirq_pending 	Set of flags denoting the pending softirqs 
+idle_timestamp 		Time when the CPU became idle 
+__nmi_count 		Number of occurrences of NMI interrupts
+apic_timer_irqs 	Number of occurrences of local APIC timer interrupts 
+
+--------------------------------------------------------------------------------
+What if interrupt is not handled by the kernel?				
+--------------------------------------------------------------------------------
+1) An interrupt is unexpected if it is not handled by the kernel that is(2):
+-> either if there is no ISR associated with the IRQ line, or 
+-> if no ISR associated with the line recognizes the interrupt 
+
+2) Because the IRQ line can be shared among several devices, the kernel does not
+disable the line as soon as it detects a single unhandled interrupt.
+
+3) the kernel stores following in the fields of irq_desc_t descriptor
+irq_count: total number of interrupts and 
+irqs_unhandled: the number of unexpected interrupts
+
+4) when the 100,000 th interrupt is raised, the kernel disables the line 
+if the number of unhandled interrupts is above 99,900.
+
+that is, if less than 101 interrupts over the last 100,000 received are expected
+interrupts from hardware devices sharing the line.
+
+--------------------------------------------------------------------------------
+IRQ distribution in multiprocessor systems 
+--------------------------------------------------------------------------------
+-> Linux sticks to the Symmetric Multiprocessing model (SMP)
+-> which means, kernel should not have any bias toward one CPU
+-> the kernel tries to distribute the IRQ signals coming from the hardware
+   devices in a round-robin fashion among all the CPUs.
+-> Therefore, all the CPUs should spend approximately the same fraction of their
+   execution time servicing I/O interrupts.
+
+-> The IRQ affinity of a given interrupt also can be changed by the system
+administrator by writing a new CPU bitmap mask into the /proc/irq/n/smp_affinity
+file (n being the interrupt vector).
+
+--------------------------------------------------------------------------------
+kirqd
+--------------------------------------------------------------------------------
+-> The kirqd kernel thread periodically executes the do_irq_balance() function.
+-> this function keeps track of the number of interrupt occurrences received by
+   every CPU in the most recent time interval.
+-> If the function discovers that the IRQ load imbalance between the 
+   heaviest loaded CPU and the least loaded CPU is significantly high, then it
+   either selects an IRQ to be “moved” from a CPU to another, or rotates all
+   IRQs among all existing CPUs.
+
+--------------------------------------------------------------------------------
+Multiple Kernel Mode stacks & thread_info & thread_union
+--------------------------------------------------------------------------------
+THREAD_SIZE is defined in each arch folders:
+
+For arm: THREAD_SIZE is 8KB, most of the arch have 8KB as stack
+#define THREAD_SIZE_ORDER   1
+#define THREAD_SIZE     (PAGE_SIZE << THREAD_SIZE_ORDER)
+
+the thread_info descriptor of each process is coupled with a Kernel Mode stack
+in a thread_union data structure composed by one or two page frames, according
+to an option selected when the kernel has been compiled.
+
+# If thread_union struct is 8KB:
+Kernel Mode stack of the current is used for every type of kernel control path: 
+-> exceptions
+-> interrupts and 
+-> deferrable functions
+
+# if thread_union struct is 4KB: 
+the kernel makes use of three types of Kernel Mode stacks:
+
+-> exception stack:
+-->used when handling exceptions, including system calls
+-->This is the stack contained in the per-process thread_union data structure
+-->thus the kernel makes use of a different exception stack for each process in
+   the system.
+
+-> hard IRQ stack:
+-->used when handling interrupts
+-->one hard IRQ stack for each CPU in the system, 
+	Why for each CPU? My answer
+	because, each CPU has its own interrupt line and also INT and IRQ can be
+	shared between different device controllers
+-->each stack is contained in a single page frame
+
+-> soft IRQ stack:
+-->used when handling deferrable functions
+-->one soft IRQ stack for each CPU in the system
+-->each stack is contained in a single page frame
+
+-> All hard IRQ stacks are contained in the hardirq_stack array
+-> All soft IRQ stacks are contained in the softirq_stack array
+-> Each array element is a union of type irq_ctx that span a single page
+-> At the bottom of this page is stored a thread_info structure
+-> the spare memory locations are used for the stack
+-> in 4kb stacks: hard IRQ stacks and soft IRQ stacks are associated with CPU's
+   rather than process, whereas exception stack is associated with process
+-> The hardirq_ctx and softirq_ctx arrays allow the kernel to quickly determine
+   the hard IRQ stack and soft IRQ stack of a given CPU.
+
+--------------------------------------------------------------------------------
+Interrupt handler
+--------------------------------------------------------------------------------
+-> the NR_IRQS macro yields the number of IRQ's supported by kernel
+-> On receiving interrupt, saving registers is the first task of interrupt
+   handler
+-> the interrupt handler invokes the do_IRQ() function.   
+-> When the ret instruction of do_IRQ() is executed, on function terminates,
+	control is transferred to ret_from_intr()	
+--------------------------------------------------------------------------------
+do_IRQ()
+--------------------------------------------------------------------------------
+-> Executes the irq_enter() macro, which increases a counter representing the
+   number of nested interrupt handlers
+-> The counter is stored in the preempt_count field of the thread_info structure
+   of the current process
+-> Invokes the __do_IRQ() function passing to it the pointer regs and the IRQ
+   number
+-> get linux irq num for hwirq 
+   irq = irq_find_mapping(domain, hwirq);
+-> mask the irq line, so that no further interrupts are received while it is
+   processing. Disabling of IRQ depends on SA_INTERRUPT flag. If this flag
+   is enabled __do_IRQ() will execute with interrupts disabled else they execute
+   with interrupts enabled.
+-> ack the PIC/GIC so that it clears the int line of CPU. So that further
+   interrupts from other device controllers are handled.
+-> sets the IRQ_PENDING after sending the ack to GIC/PIC   
+-> generic_handle_irq();/* current version of kernel */  (__do_IRQ())
+-> sets the IRQ_INPROGRESS flag
+-> Executes the irq_exit() macro, which decreases the interrupt counter and
+   checks whether deferrable kernel functions are waiting to be executed
+-> re-enable the handled irq line
+-> Terminates: the control is transferred to the ret_from_intr() function 
+--------------------------------------------------------------------------------
+Interrupt service routines
+--------------------------------------------------------------------------------
+-> interrupt handler execute the ISRs by invoking handle_IRQ_event() function
+-> Executes each interrupt service routine of the interrupt line
+retval = 0;
+do {
+	retval |= action->handler(irq, action->dev_id, regs);
+	action = action->next;
+} while (action);
+-> Terminates by returning the value of the retval local variable
+-> retval 0 if nointerrupt service routine has recognized interrupt, else 1
+-> All interrupt service routines act on the same parameters
+--> irq: 	The IRQ number
+	allows a single ISR to handle several IRQ lines,
+
+--> dev_id:	The device identifier
+    allows a single ISR to take care of several devices of the same type
+
+--> regs: 	A pointer to a pt_regs
+    allows the ISR to access the execution context of the interrupted kernel
+	control path.
+
+-> Every interrupt service routine returns the value 1 if the interrupt has been
+   effectively handled
+
+-> This return code allows the kernel to update the counter of unexpected
+   interrupts.
+-> The SA_INTERRUPT flag of the main IRQ descriptor determines whether
+   interrupts must be enabled or disabled when the do_IRQ() function invokes an
+   ISR.
+-> Remember that the interrupt service routines of an interrupt handler are
+   serialized, and often there should be no occurrence of an interrupt until the
+   corresponding interrupt handler has terminated.  
+--------------------------------------------------------------------------------
+Dynamic allocation of IRQ lines
+--------------------------------------------------------------------------------
+-> There is a way in which the same IRQ line can be used by several hardware
+   devices even if they do not allow IRQ sharing.
+-> The trick is to serialize the activation of the hardware devices so that just
+   one owns the IRQ line at a time.
+-> Before activating a device that is going to use an IRQ line, the
+   corresponding driver invokes request_irq().
+-> This function creates a 
+--> new irqaction descriptor and 
+--> initializes it with the parameter values
+--> then invokes the setup_irq() function 
+--> which insert the descriptor in the proper IRQ list
+# Example:
+request_irq(6, floppy_interrupt, SA_INTERRUPT|SA_SAMPLE_RANDOM, "floppy", NULL);
+--> device driver aborts the operation if setup_irq( ) returns an error code
+--> which usually means that the IRQ line is already in use by another device
+    that does not allow interrupt sharing
+--> When the device operation is concluded, the driver invokes the free_irq() 
+--> which removes the descriptor from the IRQ list and release the memory area
+Example:
+free_irq(6, NULL);
+
+setup_irq():
+------------
+-> To insert an irqaction descriptor in the proper list, the kernel invokes the
+	setup_irq() function
+# Example:
+struct irqaction irq0 = {timer_interrupt, SA_INTERRUPT, 0, "timer", NULL, NULL};
+setup_irq(0, &irq0);
+-> irq0 variable of type irqaction is initialized
+-> the handler field is set to the address of the timer_interrupt() function
+-> the flags field is set to SA_INTERRUPT
+-> name field is set to "timer"
+-> the fifth field is set to NULL to show that no dev_id
+-> kernel invokes setup_irq() 
+-> to insert irq0 in the list of irqaction descriptors associated with IRQ0.
+
+-------------------------------------------------------------------------------
+Save context
+--------------------------------------------------------------------------------
+x86:
+Saves following register in Kernel stack
+1) eip
+2) cs
+
+ARM:
+1) pc -> lr
+2) cpsr -> spsr
+
+Note:
+key difference between interrupt handling and process switching: 
+
+# the code executed by an interrupt or by an exception handler is not a process.
+Rather, it is a kernel control path that runs at the expense of the same process
+that was running when the interrupt occurred.
+
+# As a kernel control path, the interrupt handler is lighter than a process (it
+has less context and requires less time to set up or tear down).
+
+
 

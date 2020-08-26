@@ -1,0 +1,62 @@
+--------------------------------------------------------------------------------
+Tasklets
+--------------------------------------------------------------------------------
+- Tasklets are the preferred way to implement deferrable functions in I/O drivers
+- built on top of two softirqs named HI_SOFTIRQ and TASKLET_SOFTIRQ
+- Several tasklets may be associated with the same softirq, each tasklet carrying its own function.
+- do_softirq() executes HI_SOFTIRQ ’s tasklets before TASKLET_SOFTIRQ ’s tasklets.
+- run in interrupt context
+- As with softirqs, tasklets cannot sleep.
+- This means you cannot use semaphores or other blocking functions in a tasklet.
+- Tasklets also run with all interrupts enabled
+- two of the same tasklets never run concurrently
+- although two different tasklets can run at the same time on two different processors
+
+
+data structure:
+- Tasklets are stored in the "tasklet_vec" array
+- high-priority tasklets are stored in "tasklet_hi_vec" arrays
+- Both of them include NR_CPUS elements of type tasklet_head , and each element consists of a pointer to a list of tasklet descriptors.
+- unique to each processor in the system
+
+tasklet descriptor: struct tasklet_struct
+---------------------------------------------------------------
+Field name 		Description
+---------------------------------------------------------------
+next 			Pointer to next descriptor in the list
+state 			Status of the tasklet
+/* count used as a reference count field. If it is nonzero, the tasklet is disabled and cannot run; if it is zero, the tasklet is enabled and can run if marked pending. */
+count 			Lock counter
+func 			Pointer to the tasklet function
+data 			An unsigned long integer that may be used by the tasklet function
+
+The state member is exactly zero:
+TASKLET_STATE_SCHED denotes a tasklet that is scheduled to run
+TASKLET_STATE_RUN denotes a tasklet that is running
+
+TASKLET_STATE_RUN is used only on multiprocessor machines because a uniprocessor
+machine always knows whether the tasklet is running.
+
+Scheduling Your Tasklet:
+- To schedule a tasklet for execution, 
+- tasklet_schedule() is called and passed a pointer to the relevant tasklet_struct
+tasklet_schedule(&my_tasklet);
+
+- After a tasklet is scheduled, it runs once at some time in the near future
+- If the same tasklet is scheduled again, before it has had a chance to run, it still runs only once
+- If it is already running, for example on another processor, the tasklet is rescheduled and runs again
+- As an optimization, a tasklet always runs on the processor that scheduled it. making better use of the processor’s cache,
+
+Disable Tasklet:	
+- You can disable a tasklet via a call to tasklet_disable()
+- tasklet_disable_nosync() , which disables the given tasklet but does not wait for the tasklet to complete prior to returning.	
+
+Enable Tasklet:
+- tasklet_enable() enables the tasklet
+
+Remove from Queue:
+- You can remove a tasklet from the pending queue via tasklet_kill()
+
+Q) When to use tasklet and when to use softirq?
+see when to use section in softirq.
+

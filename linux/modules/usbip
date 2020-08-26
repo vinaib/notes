@@ -1,0 +1,31 @@
+--------------------------------------------------------------------------------
+Files: drivers/usb/usbip/
+--------------------------------------------------------------------------------
+1. CONFIG_USBIP_CORE: 
+	usbip_common.c 
+	usbip_event.c
+
+2. CONFIG_USBIP_VHCI_HCD: 
+	vhci_sysfs.c 
+	vhci_tx.c 
+	vhci_rx.c 
+	vhci_hcd.c
+
+3. CONFIG_USBIP_HOST: 
+	stub_dev.c 
+	stub_main.c 
+	stub_rx.c 
+	stub_tx.c
+
+4. CONFIG_USBIP_VUDC: 
+	vudc_dev.c 
+	vudc_sysfs.c 
+	vudc_tx.c 
+	vudc_rx.c
+	vudc_transfer.c 
+	vudc_main.c
+--------------------------------------------------------------------------------
+CONFIG_USBIP_HOST
+--------------------------------------------------------------------------------
+
+

@@ -1,0 +1,168 @@
+--------------------------------------------------------------------------------
+Noncontiguous Memory Area Management
+--------------------------------------------------------------------------------
+- If requests to memory area are frequent:
+  it is preferable to map memory areas into sets of contiguous page frames, thus
+  making better use of the cache and achieving lower average memory access times
+
+- if the requests for memory areas are infrequent:
+  it makes sense to consider an allocation scheme based on noncontiguous page
+  frames accessed through contiguous linear addresses.
+
+Advantage:
+- avoid external fragmentation
+
+Disadvantage: 
+- fiddle with the kernel Page Tables
+
+- the size of a noncontiguous memory area must be a multiple of 4,096
+--------------------------------------------------------------------------------
+Linux uses noncontiguous memory areas in several ways:
+--------------------------------------------------------------------------------
+- to allocate data structures for active swap areas
+- to allocate space for a module
+- to allocate buffers to some I/O drivers
+- provide yet another way to make use of high memory page frames
+
+- The beginning of the area includes the linear addresses that map the first 896
+  MB of RAM (0xC0000000 - (0xc0000000 + 896M))
+- the linear address that corresponds to the end of the directly mapped physical
+  memory is stored in the high_memory variable. (0xC0000000 + 896M)
+
+- The end of the area contains the fix-mapped linear addresses
+  (i.e. towards FIX_ADDR_START - 0xFFFFFFFF)
+
+- Starting from PKMAP_BASE we find the linear addresses used for the persistent
+  kernel mapping of high-memory page frames
+  PKMAP_BASE - FIX_ADDR_START
+
+- The remaining linear addresses can be used for noncontiguous memory areas
+
+- safety interval of size 8 MB (macro VMALLOC_OFFSET ) is inserted between the
+  end of the physical memory mapping and the first memory area.
+  its purpose is to “capture” out-of-bounds memory accesses.
+
+  -- For the same reason, additional safety intervals of size 4 KB are inserted
+  to separate noncontiguous memory areas.
+  
+- The VMALLOC_START macro defines the starting address of the linear space
+  reserved for noncontiguous memory areas, while VMALLOC_END defines its ending
+  address.
+--------------------------------------------------------------------------------
+Descriptors of Noncontiguous Memory Areas  
+--------------------------------------------------------------------------------
+- Each noncontiguous memory area is associated with a descriptor of type
+  vm_struct.
+- The fields of the vm_struct descriptor
+  void  *addr 	Linear address of the first memory cell of the area
+  ulong size 	Size of the area plus 4,096 (inter-area safety interval)
+  ulong flags 	Type of memory mapped by the noncontiguous memory area
+  struct page **pages Pointer to array of nr_pages pointers to page descriptors
+  uint nr_pages Number of pages filled by the area
+  ulong phys_addr Set to 0 unless the area has been created to map the I/O shared
+  				  memory of a hardware device
+  struct vm_struct* next Pointer to next vm_struct structure 
+
+- flags field identifies the type of memory mapped by the area:  
+-- VM_ALLOC for pages obtained by means of vmalloc()
+-- VM_MAP for already allocated pages mapped by means of vmap()
+-- VM_IOREMAP for on-board memory of hardware devices mapped by means of ioremap()
+
+get_vm_area():
+- function looks for a free range of linear addresses between VMALLOC_START and
+  VMALLOC_END
+- parameters: 
+-- the size in bytes of the memory region to be created, and a 
+-- flag specifying the type of region
+
+- Invokes kmalloc() to obtain a memory area for the new descriptor of type
+  vm_struct
+- If such an interval exists: 
+  the function initializes the fields of the descriptor releases the vmlist_lock
+  lock, and terminates by returning the initial address of the noncontiguous
+  memory area.
+--------------------------------------------------------------------------------
+Allocating a Noncontiguous Memory Area  
+--------------------------------------------------------------------------------
+- The vmalloc() function allocates a noncontiguous memory area to the kernel
+
+
+--------------------------------------------------------------------------------
+VMAP and VMALLOC and VMALLOC_32  (vunmap and vfree)
+--------------------------------------------------------------------------------
+vmalloc(): 
+- allocates a noncontiguous memory area to the kernel
+- allocates page frames from High memory 
+- map(map_vm_area) the allocated page frames from High memory to 128M linear address space
+- before mapping vmalloc invokes get_vm_area(), for checking linear address range
+
+vmalloc_32():
+- similar to vmalloc(), but allocates from ZONE_NORMAL and ZONE_DMA
+
+vmap():
+- function, which maps page frames already allocated in a noncontiguous memory area
+- function is thus similar to vmalloc() , but it does not allocate page frames	
+- receives page descriptors as an array of pointers
+- invokes get_vm_area() to get a new vm_struct descriptor
+- invokes map_vm_area() to map the page frames	
+--------------------------------------------------------------------------------
+static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+{
+	pte_t *pte;
+
+	/*
+	 * nr is a running index into the array which helps higher level
+	 * callers keep track of where we're up to.
+	 */
+
+	pte = pte_alloc_kernel(pmd, addr);
+	if (!pte)
+		return -ENOMEM;
+	do {
+		struct page *page = pages[*nr];
+
+		if (WARN_ON(!pte_none(*pte)))
+			return -EBUSY;
+		if (WARN_ON(!page))
+			return -ENOMEM;
+		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
+		(*nr)++;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+	return 0;
+}
+
+static int vmap_pmd_range(pud_t *pud, unsigned long addr,
+		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+{
+	pmd_t *pmd;
+	unsigned long next;
+
+	pmd = pmd_alloc(&init_mm, pud, addr);
+	if (!pmd)
+		return -ENOMEM;
+	do {
+		next = pmd_addr_end(addr, end);
+		if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
+			return -ENOMEM;
+	} while (pmd++, addr = next, addr != end);
+	return 0;
+}
+
+static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
+		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+{
+	pud_t *pud;
+	unsigned long next;
+
+	pud = pud_alloc(&init_mm, pgd, addr);
+	if (!pud)
+		return -ENOMEM;
+	do {
+		next = pud_addr_end(addr, end);
+		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
+			return -ENOMEM;
+	} while (pud++, addr = next, addr != end);
+	return 0;
+}
+

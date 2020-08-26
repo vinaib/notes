@@ -1,0 +1,472 @@
+__get_free_pages() or alloc_pages():
+	to get pages from the zoned page frame allocator
+
+kmem_cache_alloc() or kmalloc():
+	to use the slab allocator for specialized or general-purpose objects
+
+vmalloc() or vmalloc_32():
+	to get a noncontiguous memory area.
+
+free_area_cache: 
+- Address from which the kernel will look for a free interval of linear
+  addresses in the process address space.
+
+--------------------------------------------------------------------------------
+The Process’s Address Space
+--------------------------------------------------------------------------------
+When allocating memory to User Mode processes:
+- When a User Mode process asks for dynamic memory
+- Process requests for dynamic memory are considered non-urgent	
+- it doesn’t get additional page frames; 
+- instead, it gets the right to use a new range of linear addresses, which
+  become part of its address space.
+- This interval is called a “memory region.”
+
+Whereas if kernel control path requests for memory, kernel will allocate it
+immediately.
+
+- The kernel may dynamically modify a process address space by adding or
+  removing intervals of linear addresses.
+
+- The kernel represents intervals of linear addresses by means of resources
+  called memory regions: which are characterized by 
+  -- an initial linear address, 
+  -- a length, and 
+  -- some access rights.
+
+- For reasons of efficiency, both the initial address and the length of a memory
+  region must be multiples of 4,096.
+
+- it is essential for the kernel to identify the memory regions currently owned
+  by a process: the addressspace of a process.
+- This allows the "Page Fault exception handler" to distinguish between two
+  types of invalid linear addresses that cause it to be invoked:
+  -- Those caused by programming errors.
+  -- Those caused by a missing page; 
+
+  even though the linear address belongs to the process’s address space, the
+  page frame corresponding to that address has yet to be allocated.
+
+  The latter addresses are not invalid from the process’s point of view; the
+  induced Page Faults are exploited by the kernel to implement demand paging:
+  the kernel provides the missing page frame and lets the process continue.	
+--------------------------------------------------------------------------------
+The Memory Descriptor (mm_struct)
+--------------------------------------------------------------------------------
+- All information related to the process address space is included this
+- object is referenced by the mm field of the process descriptor
+- All memory descriptors (of all processes) are stored in a doubly linked list. 
+- Each descriptor stores the address of the adjacent list items in the mmlist
+- The first element of the list is the mmlist field of init_mm(process 0)
+mmlist_lock spin lock:
+- The list is protected against concurrent accesses in multiprocessor systems
+mm_users:
+- stores the number of lightweight processes that share the mm_struct
+mm_count:
+- is the main usage counter of the memory descriptor
+- all “users” in mm_users count as one unit in mm_count
+- memory descriptor is deallocated when mm_count is 0
+- Every time the mm_count field is decreased, the kernel checks for zero
+Example:	
+- Consider a memory descriptor shared by two lightweight processes
+- its mm_users field stores the value 2
+- its mm_count field stores the value 1
+- If the memory descriptor is temporarily lent to a kernel thread
+- the kernel increases the mm_count field.
+- if both lightweight processes die and the mm_users field becomes zero
+- the memory descriptor is not released until the kernel thread finishes using
+  it because the mm_count field remains greater than zero.
+
+mm_alloc(): 
+- function is invoked to get a new memory descriptor.	
+- descriptors are stored in a slab allocator cache
+- mm_alloc() calls kmem_cache_alloc()	
+- initializes the new memory descriptor, and 
+- sets the mm_count and mm_users field to 1	
+- the mmput() function decreases the mm_users field of a memory descriptor.
+
+mm & active_mm:	
+- every process descriptors includes these two kinds of memory descriptor ptrs
+- mm points to the memory descriptor owned by the process
+- active_mm points to the memory descriptor used by the process when it is in
+  execution.
+- For regular processes, the two fields store the same pointer
+- Kernel threads do not own any memory descriptor:
+-- thus their mm field is always NULL
+-- When a kernel thread is selected for execution, its active_mm field is 
+   initialized to the value of the active_mm of the previously running process
+--------------------------------------------------------------------------------
+Memory Descriptor of Kernel Threads
+--------------------------------------------------------------------------------
+- Kernel threads run only in Kernel Mode
+- they never access linear addresses below TASK_SIZE	
+- TASK_SIZE: same as PAGE_OFFSET , usually 0xc0000000
+- kernel threads do not use memory regions, so most of the fields of memory
+  descriptor are useless (see above text)
+
+- Whenever a process in Kernel Mode modifies a Page Table entry for a “high”
+  linear address (above TASK_SIZE ), it should also update the corresponding
+  entry in the sets of Page Tables of all processes in the system.
+
+- In fact, once set by a process in Kernel Mode, the mapping should be effective
+  for all other processes in Kernel Mode as well.
+
+- Touching the sets of Page Tables of all processes is a costly operation;
+  therefore, Linux adopts a deferred approach.
+
+- We already mentioned this deferred approach the kernel updates a canonical set
+  of Page Tables rooted at the swapper_pg_dir master kernel Page Global
+  Directory.
+
+- This Page Global Directory is pointed to by the pgd field of a master memory
+  descriptor, which is stored in the init_mm variable.
+--------------------------------------------------------------------------------
+Memory Regions Data structures: vm_area_struct
+--------------------------------------------------------------------------------
+- Linux implements a memory region by means of an object of type vm_area_struct
+- Each memory region descriptor identifies a linear address interval
+vm_start
+- first linear address of the interval
+vm_end
+- first linear address outside of the interval
+vm_end-vm_start:
+- denotes the length of the memory region
+vm_mm:
+- points to the mm_struct memory descriptor of the process that owns the region
+
+- Memory regions owned by a process never overlap
+
+- kernel tries to merge regions when 
+-- new one is allocated right next to an existing one
+-- and if their access rights match
+- else create new memory region
+
+- if a range of linear addresses is removed from the process address space
+-- the kernel resizes the affected memory regions
+-- or the resizing forces a memory region to split into two smaller ones
+
+vm_ops:
+- points to a vm_operations_struct data structure
+--------------------------------------------------------------------------------
+Memory Region Data Structures: R&B Trees 
+--------------------------------------------------------------------------------
+- All the regions owned by a process are linked in a simple list.
+- Regions appear in the list in ascending order by memory address
+vm_next:
+- field of vm_area_struct element points to the next element in the list
+mmap:
+- points to the first memory region descriptor in the list
+map_count:
+- contains the number of regions owned by the process
+- a process may own up to 65,536 different memory regions
+- system administrator may change this limit "/proc/sys/vm/max_map_count"
+
+- Linux 2.6 stores memory descriptors in data structures called red-black trees
+--------------------------------------------------------------------------------
+Memory Region Access Rights
+--------------------------------------------------------------------------------
+Page: 
+- refer both to a set of linear addresses and to the data contained in this
+  group of addresses.
+- linear address interval ranging between 0 and 4,095 as page 0
+- linear address interval ranging between 4,096 and 8,191 as page 1
+- and so forth
+
+Memory Region:
+- consists of a set of pages that have consecutive page numbers
+
+Flags associated with a page:
+Flags at Hadrdware level: PTE
+- few flags such as Read/Write , Present , or User/Supervisor stored in each
+  Page Table entry.
+  -- is used by the 80x86 hardware to check whether the requested kind of
+  addressing can be performed
+
+Flags at Linux Page descriptor  
+- set of flags stored in the flags field of each page descriptor
+  -- is used by Linux for many different purposes
+
+Flags at process level, memory regions:  
+- stored in the vm_flags field of the vm_area_struct descriptor
+- offers the kernel information about all the pages of the memory region
+-- what they contain and what rights the process has to access each page
+-- describe the region itself, such as how it can grow
+-- Page access rights included in a memory region descriptor
+
+- the Read, Write, and Execute access rights associated with the pages of a
+  memory region must be duplicated in all the corresponding Page Table entries,
+  so that checks can be directly performed by the Paging Unit circuitry.
+- In other words, the page access rights dictate what kinds of access should
+  generate a Page Fault exception.
+
+Initial values of Page Table flags: (vm_page_prot)
+- which must be the same for all pages in the memory region
+- are stored in the vm_page_prot field of the vm_area_struct descriptor
+- When adding a page, the kernel sets the flags in the corresponding Page Table
+  entry according to the value of the vm_page_prot field.
+protection_map:  
+- mapping memory region’s access rights into the page protection bits
+- 16 possible combinations of the Read, Write, Execute, and Share are scaled
+  down. (see TB: page 365)
+--------------------------------------------------------------------------------
+Finding the closest region to a given address: find_vma()
+--------------------------------------------------------------------------------
+find_vma():
+- function acts on two parameters
+-- address mm of a process memory descriptor 
+-- a linear address addr
+-- locates the first memory region whose vm_end field is greater than addr and
+   returns the address of its descriptor
+-- if no such region exists, it returns a NULL pointer
+
+- the region selected by find_vma() does not necessarily include addr because
+  addr may lie outside of any memory region.
+	 
+mmap_cache:
+- Each memory descriptor includes this
+- stores the descriptor addr of the region that was last referenced by process
+- This additional field is introduced to reduce the time spent in looking for
+  the region that contains a given linear address.
+- based on principle of locality
+-- Locality of address references in programs makes it highly likely that if the
+   last linear address checked belonged to a given region, the next one to be
+   checked belongs to the same region.
+
+- The function thus starts by checking whether the region identified by
+  mmap_cache includes addr . If so, it returns the region descriptor pointer:
+
+vma = mm->mmap_cache;
+
+if (vma && vma->vm_end > addr && vma->vm_start <= addr)
+	return vma;
+- Otherwise, the memory regions of the process must be scanned, and the function
+  looks up the memory region in the red-black tree:
+
+rb_node = mm->mm_rb.rb_node;
+vma = NULL;
+
+while (rb_node) {
+	vma_tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+
+	if (vma_tmp->vm_end > addr) {
+		vma = vma_tmp;
+
+		if (vma_tmp->vm_start <= addr)
+			break;
+
+		rb_node = rb_node->rb_left;
+	} 
+	else
+		rb_node = rb_node->rb_right;
+}
+
+if (vma)
+	mm->mmap_cache = vma;
+
+return vma;
+--------------------------------------------------------------------------------
+find_vma_prev()
+--------------------------------------------------------------------------------
+- function is similar to find_vma(), except that it writes in an additional
+pprev parameter a pointer to the descriptor of the memory region that precedes
+the one selected by the function.
+--------------------------------------------------------------------------------
+find_vma_prepare() 
+--------------------------------------------------------------------------------
+- function locates the position of the new leaf in the red-black tree that
+corresponds to a given linear address and returns the addresses of the preceding
+memory region and of the parent node of the leaf to be inserted.
+--------------------------------------------------------------------------------
+finding a region that overlaps a given interval: find_vma_intersection()
+--------------------------------------------------------------------------------
+- function finds the first memory region that overlaps a given linear address
+  interval.
+- mm parameter points to the memory descriptor of the process, 
+- the start_addr and end_addr linear addresses specify the interval
+- returns a NULL pointer if no such region exists
+	vma = find_vma(mm,start_addr);
+
+	if (vma && end_addr <= vma->vm_start)
+		vma = NULL;
+
+	return vma;
+--------------------------------------------------------------------------------
+Finding a free interval: get_unmapped_area()
+--------------------------------------------------------------------------------
+- function searches the process address space to find an available linear
+  address interval.
+- len parameter specifies the interval length
+- non-null addr parameter specifies the address from which the search must be
+  started.
+- successful: returns the initial address of the new interval
+- otherwise, it returns the error code -ENOMEM
+- function checks that the specified address is in the User Mode address space 
+- is aligned to a page boundary
+  addr = (addr + 0xfff) & 0xfffff000;
+- next function invokes either one of two methods  
+-- depending on whether the linear address interval should be used 
+   -- for a file memory mapping:
+      function executes the get_unmapped_area file operation
+
+   -- for an anonymous memory mapping
+      function executes the get_unmapped_area of the memory descriptor
+
+   -- In turn, this method is implemented by either the 
+     arch_get_unmapped_area() function, or 
+	 arch_get_unmapped_area_topdown() function, 
+	 according to the memory region layout of the process
+
+- the first third of the User Mode linear address space is reserved for 
+  memory regions having a predefined starting linear address:
+  -- typically the text, data, and bss segments of an executable file
+--------------------------------------------------------------------------------
+Inserting a region in the memory descriptor list: insert_vm_struct()
+--------------------------------------------------------------------------------
+- inserts a vm_area_struct structure in the memory region object list and
+  red-black tree of a memory descriptor
+- uses two parameters: 
+  mm , which specifies the address of a process memory descriptor, and 
+  vma , which specifies the address of the vm_area_struct object to be inserted
+- The vm_start and vm_end fields of the memory region object must have already
+  been initialized
+- The function invokes the find_vma_prepare() function to look up the position
+  in the red-black tree mm->mm_rb where vma should go.
+vma_link()  
+- Then insert_vm_struct() invokes the vma_link() function
+  1. Inserts the memory region in the linked list referenced by mm->mmap
+  2. Inserts the memory region in the red-black tree mm->mm_rb
+  3. If the memory region is anonymous, inserts the region in the list headed at
+     the corresponding anon_vma data structure
+  4. Increases the mm->map_count counter
+- If the region contains a memory-mapped file, the vma_link() function performs
+  additional tasks.
+
+__vma_unlink():
+- function receives as its parameters a memory descriptor address mm and 
+- two memory region object addresses vma and prev
+- Both memory regions should belong to mm, and 
+- prev should precede vma in the memory region ordering. 
+- The function removes vma from the linked list and the red-black tree of the
+  memory descriptor.
+- It also updates mm->mmap_cache, which stores the last referenced memory
+  region, if this field points to the memory region just deleted.
+--------------------------------------------------------------------------------
+Allocating a Linear Address Interval: do_mmap()
+--------------------------------------------------------------------------------
+- function creates and initializes a new memory region for the current process
+
+- after a successful allocation, the memory region could be merged with other
+  memory regions defined for the process.
+
+file and offset:
+- File object pointer file 
+- file offset offset are used if the new memory region will map a file into
+  memory.
+
+addr
+- linear address specifies where the search for a free interval must start
+
+len
+- length of the linear address interval
+
+prot
+- specifies the access rights of the pages included in the memory region
+- Possible flags are 
+PROT_READ
+PROT_WRITE
+PROT_EXEC
+PROT_NONE
+The first three are same as:
+VM_READ, VM_WRITE, and VM_EXEC
+
+- PROT_NONE indicates that the process has none of those access rights
+
+flag: 
+- specifies remaining memory region flags
+- MAP_GROWSDOWN, MAP_LOCKED, MAP_DENYWRITE, and MAP_EXECUTABLE
+
+- MAP_SHARED: 
+-- pages in the memory region can be shared among several processes
+
+- MAP_PRIVATE:
+
+- MAP_FIXED:
+-- initial linear address of the interval must be exactly the one specified in
+   the addr parameter
+
+- MAP_ANONYMOUS
+-- No file is associated with the memory region
+
+- MAP_NORESERVE
+-- The function doesn’t have to do a preliminary check on the number of free
+   page frames.
+
+- MAP_POPULATE
+-- The function should pre-allocate the page frames required for the mapping
+   established by the memory region. This flag is significant only for memory
+   regions that map files.
+
+- MAP_NONBLOCK
+-- Significant only when the MAP_POPULATE flag is set: when pre-allocating the
+   page frames, the function must not block.
+
+Operation:
+- preliminary checks on the value of offset and then executes the
+  do_mmap_pgoff() function
+  - function for anonymous memory regions
+  - function for file memory mapping
+
+- Here we discuss about mapping anonymous memory regions
+
+1. Checks whether the parameter values are correct and whether the request can be
+  satisfied.
+-- The linear address interval has zero length or includes addresses greater than
+  TASK_SIZE.
+-- The process has already mapped too many memory regions—that is, the value of
+   the map_count field of its mm memory descriptor exceeds the allowed maximum
+   value.
+-- The flag parameter specifies that the pages of the new linear address
+   interval must be locked in RAM, but the process is not allowed to create
+   locked memory regions, or the number of pages locked by the process exceeds
+   the threshold stored in the signal->rlim[RLIMIT_MEMLOCK].rlim_cur field of
+   the process descriptor.
+- If any of the preceding conditions holds, do_mmap_pgoff( ) terminates by
+  returning a negative value.
+
+2. Invokes get_unmapped_area() to obtain a linear address interval for the new
+   region
+3. Computes the flags of the new memory region by combining the values stored in
+   the prot and flags parameters.
+4. Invokes find_vma_prepare():
+	to locate the object of the memory region that shall precede the new
+	interval, as well as the position of the new region in the red-black tree.
+    see TB:370	
+11. Invokes vma_link() to insert the new region in the memory region list and
+	red-black tree
+12. Increases the size of the process address space stored in the total_vm field
+	of the memory descriptor.
+13. If the VM_LOCKED flag is set, it invokes make_pages_present() to allocate
+	all the pages of the memory region in succession and lock them in RAM.
+14. The make_pages_present( ) function, in turn, invokes get_user_pages()	
+15. The get_user_pages() function cycles through all starting linear addresses
+	of the pages between addr and addr+len ; for each of them, it invokes
+    follow_page() to check whether there is a mapping to a physical page in the
+    current ’s Page Tables. If no such physical page exists, get_user_pages()
+    invokes handle_mm_fault().
+16. allocates one page frame and sets its Page Table entry according to the
+    vm_flags field of the memory region descriptor.
+--------------------------------------------------------------------------------
+Releasing a Linear Address Interval: do_munmap()
+--------------------------------------------------------------------------------
+- function goes through two main phases
+- In the first phase, it scans the list of memory regions owned by
+the process and unlinks all regions included in the linear address interval from
+the process address space.
+
+- In the second phase, the function updates the process Page Tables and removes
+the memory regions identified in the first phase.
+
+- The function makes use of the split_vma() and unmap_region() functions
+
+- unmap_region() to clear the Page Table entries covering the linear address
+  interval and to free the corresponding page frames.

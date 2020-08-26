@@ -1,0 +1,162 @@
+References:
+[1]: https://tldp.org/LDP/LG/issue93/bhaskaran.html
+[2]: https://www.youtube.com/c/TheLinuxChannel/playlists
+
+Commands:
+netstat:
+	It prints out network connections, 
+ netstat -r	: 	routing tables
+ netstat -i :   interface table
+ netstat -s	:   interface statistics
+	masquerade connections, and 
+	multicast membership
+
+ifconfig:
+- It is used to display or configure a network interface.
+
+route:
+
+ip command:
+- It is used to show or manipulate routing, devices, policy routing and tunnels.
+ip r : routing table
+    
+
+Files:
+-----
+1) net/core/dev.c	//deals with network device
+2) net/core/dst.c	//deals with pkt transmission
+3) net/core/skbuff.c
+4) net/sched/
+5) net/socket.c:
+	Kernel socket API
+	sock_recvmsg()
+	sock_sendmsg()
+	kernel_sendmsg()
+	kernel_recvmsg()
+6) net/ipv4/		//ipv4 protocols, ping(icmp), udp, tcp, arp, ...
+7) drivers/net/		// network drivers for various hardware
+
+net/core/dev.c
+--------------
+list_netdevice() //Adds net device
+unlist_netdevice() 	
+dev_open()	//called on ifconfig eth0 up
+dev_close()
+
+
+www.linuxfoundation.org/images/1/1c/Network_data_flow_through_kernel.png [Not
+actve, but you can get png from google, if you search for
+"Network_data_flow_through_kernel.png" alone"]
+www.cnblogs.com/ggjucheng/archive/2012/11/01/2750217.html [link is active]
+
+Tx Routines:
+------------
+dev_queue_xmit_sk()
+	__dev_queue_xmit() sk_buff
+		dev_hard_start_xmit()
+dev_queue_xmit_nit()
+
+Rx Routines:
+------------
+netif_receive_skb_sk()
+	__netif_receive_skb()
+		__netif_receive_skb_core()
+
+
+Stack
+-----
+userspace ->
+socket (i/f user <-> kernel) ->
+net/core/ipv4 ->
+net/core/dev/ "dev layer queues skb to driver ring buffers" ->
+drivers
+
+All below function reutrsn 0/+ve values:
+in_interrut(): for both in_irq() and in_softirq(), in_interrupt() will return 1.
+	in_irq()
+	in_softirq()
+--------------------------------------------------------------------------------
+driver				
+--------------------------------------------------------------------------------
+- n/w driver/module adds n/w device
+- it inserts a data structure for each newly detected interface into a global list of network devices
+
+struct net_device: include/linux/netdevice.h
+- Each n/w interface is defined by a struct net_device
+
+	struct net_device rtl8139 = {init: rtl8139_init};
+
+	int rtl8139_init (struct net_device *dev)
+	{
+		dev->open = rtl8139_open;
+		dev->stop = rtl8139_release;
+		dev->hard_start_xmit = rtl8139_xmit;
+		printk ("8139 device initialized\n");
+		return 0;
+	}				   
+
+- The code above initializes only a single field 'init' that carries the initialization functions
+
+- Whenever we register a device the kernel calls this init function, which initializes the hardware and fills up struct net_device item
+
+fields:
+- name : which holds the name of the interface
+
+- int (*open) (struct net_device *dev): 
+	This method opens the interface whenever ifconfig activates it. The open method should register any system resource it needs.
+
+	int rtl8139_open (struct net_device *dev)
+	{
+		printk("rtl8139_open called\n");
+		netif_start_queue (dev);
+		return 0;
+	}	
+
+- int (*stop) (struct net_device *dev): 
+	This method closes or stops the interface (like when brought down by ifconfig).
+
+	int rtl8139_release (struct net_device *dev)
+	{
+		printk ("rtl8139_release called\n");
+		netif_stop_queue(dev);
+		return 0;
+	}	
+
+- int (*hard_start_xmit) (struct sk_buff *skb, struct net_device *dev):	
+	This method initiates the transmission through the device 'dev'. The data is contained in the socket buffer structure skb.
+
+	static int rtl8139_xmit (struct sk_buff *skb, struct net_device *dev)
+	{
+		printk ("dummy xmit function called....\n");
+		dev_kfree_skb(skb);
+		return 0;
+	}
+
+- struct net_device * (*get_status) (struct net_device *dev): 
+	Whenever a application needs to get statistics for the interface, this method is called. This happens, for example, when ifconfig or netstat -i is run
+
+- void *priv:	
+	The driver writer owns this pointer and can use it at will. The utility of this member will be persuaded at a later stage.
+
+/* Module */	
+	int rtl8139_init_module (void)
+	{
+		int result;
+
+		strcpy (rtl8139.name, "rtl8139");
+		if ((result = register_netdev (&rtl8139))) {
+			printk ("rtl8139: Error %d  initializing card rtl8139 card",result);
+			return result;
+		}
+		return 0;
+	}
+	
+ 	void rtl8139_cleanup (void)
+	{
+		printk ("<0> Cleaning Up the Module\n");
+		unregister_netdev (&rtl8139);
+		return;
+	}
+	
+	module_init (rtl8139_init_module);
+	module_exit (rtl8139_cleanup);	
