@@ -1,0 +1,90 @@
+--------------------------------------------------------------------------------
+two main kinds of timing measurement that must be performed by the Linux kernel:
+--------------------------------------------------------------------------------
+- Keeping the current time and date:
+  API:
+  time()
+  ftime()
+  gettimeofday()
+  Hardware: Clock circuits	
+
+- Maintaining timers:
+  mechanisms that are able to notify the kernel or a user program that a certain interval of time has elapsed
+  setitimer() 
+  alarm()
+  Hardware: Timer circuits
+
+RTC:
+- All PCs include a clock called Real Time Clock (RTC), which is independent of the CPU and all other chips
+- The RTC continues to tick even when the PC is switched off, because it is energized by a small battery.
+- The CMOS RAM and RTC are integrated in a single chip
+- The RTC is capable of issuing periodic interrupts at frequencies ranging between 2 Hz and 8,192 Hz.
+- It can also be programmed to activate interrupt line when the RTC reaches a specific value, thus working as an alarm clock.
+- Linux uses the RTC only to derive the time and date
+- Linux allows processes to program the RTC by acting on the /dev/rtc device file
+
+Time Stamp Counter(TSC):
+- All 80×86 microprocessors include a CLK input pin, which receives the clock signal of an external oscillator
+- 80×86 microprocessors sport a counter that is increased at each clock signal.	
+- The counter is accessible through the 64-bit Time Stamp Counter (TSC) register
+- which can be read by means of the rdtsc assembly language instruction.
+- When using this register, the kernel has to take into consideration the frequency of the clock signal, if, for instance, the clock ticks at 1 GHz, the Time Stamp Counter is increased once every nanosecond
+- Linux may take advantage of this register to get much more accurate time measurements than those delivered by the Programmable Interval Timer
+- Linux must determine the clock signal frequency while initializing the system
+- In fact, because this frequency is not declared when compiling the kernel, the same kernel image may run on CPUs whose clocks may tick at any frequency.	
+- The task of figuring out the actual frequency of a CPU is accomplished during the system’s boot
+- The calibrate_tsc() function computes the frequency by counting the number of clock signals that occur in a time interval of approximately 5 milliseconds
+- This time constant is produced by properly setting up one of the channels of the Programmable Interval Timer
+
+Programmable Interval Timer(PIT):
+- The role of a PIT is similar to the alarm clock
+- Instead of ringing a bell, this device issues a special interrupt called timer interrupt, which notifies the kernel that one more time interval has elapsed
+- Another difference from the alarm clock is that the PIT goes on issuing interrupts forever at some fixed frequency established by the kernel
+- Linux programs the PIT of IBM-compatible PCs to issue timer interrupts on the IRQ0 at a (roughly) 1000-Hz frequency that is, once every 1 millisecond.
+- This time interval is called a tick, and its length in nanoseconds is stored in the tick_nsec variable. 
+- On a PC, tick_nsec is initialized to 999,848 nanoseconds
+- shorter ticks result in higher resolution timers, which help with smoother multimedia playback and faster response time when performing synchronous I/O multiplexing
+- this is tradeoff:
+  shorter ticks require the CPU to spend a larger fraction of its time in Kernel Mode—that is, a smaller fraction of time in User Mode. As a consequence, user programs run slower
+- The frequency of timer interrupts depends on the hardware architecture. 
+- The slower machines have a tick of roughly 10 milliseconds (100 timer interrupts per second),
+- while the faster ones have a tick of roughly 1 millisecond (1000 or 1024 timer interrupts per second)
+
+TODO:
+- Which machines are considered as slower and which are considered as faster?
+
+Macros that determine the frequency of timer interrupts:
+- HZ yields the approximate number of timer interrupts per second
+- CLOCK_TICK_RATE yields the value 1,193,182, which is the 8254 chip’s internal oscillator frequency
+- LATCH yields the ratio between CLOCK_TICK_RATE and HZ , rounded to the nearest integer. It is used to program the PIT.
+--------------------------------------------------------------------------------
+CPU Local Timer
+--------------------------------------------------------------------------------
+- The CPU local timer is a device similar to the Programmable Interval Timer just described that can issue one-shot or periodic interrupts
+A few differences:
+- (local timer) The APIC’s timer counter is 32 bits long
+- (External timer) The PIT’s timer counter is 16 bits long
+- the local timer can be programmed to issue interrupts at very low frequencies
+- The local APIC timer sends an interrupt only to its processor
+- while the PIT raises a global interrupt, which may be handled by any CPU in the system.
+- The APIC’s timer is based on the bus clock signal, It can be programmed in such a way to decrease the timer counter every 1, 2, 4, 8, 16, 32, 64, or 128 bus clock signals.
+- the PIT, which makes use of its own clock signals, can be programmed in a more flexible way
+--------------------------------------------------------------------------------
+High Precision Event Timer (HPET)
+--------------------------------------------------------------------------------
+- HPET provides a number of hardware timers
+- Basically, the chip includes up to eight 32-bit or 64-bit independent counters.
+- Each counter is driven by its own clock signal, 
+- whose frequency must be at least 10 MHz; therefore, the counter is increased at least once in 100 nanoseconds.
+- Any counter is associated with at most 32 timers, each of which is composed by a comparator and a match register
+- The comparator is a circuit that checks the value in the counter against the value in the match register, and raises a hardware interrupt if a match is found.
+- Some of the timers can be enabled to generate a periodic interrupt.
+
+
+
+
+	 
+
+
+
+
