@@ -1,6 +1,10 @@
 # Multi-core processors include an integrated interrupt controller that
 # implements the GIC architecture.
 
+GIC: 
+Distributor
+Core interface
+
 # This controller provides 32 private interrupts per core.
 
 # lower 16 are Software Generated Interrupts (SGI) that can be generated only

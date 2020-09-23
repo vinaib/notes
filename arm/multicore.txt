@@ -80,6 +80,182 @@ multiple cores.
 A7 is one cluster
 A15 is another cluster
 Example: Hikey 960
-  
+--------------------------------------------------------------------------------  
+Symmetric multi-processing
+--------------------------------------------------------------------------------
+- SMP is a software architecture that dynamically determines the roles of individual processors
+- Each core in the cluster has the same view of memory and of shared hardware.
+- Any application, process or task can run on any core and the operating system scheduler can dynamically migrate tasks between cores to achieve optimal system load
+- SMP-capable operating system provides an abstracted view of the available core resources to the application
+- Multiple applications can run concurrently in an SMP system without re-compilation or source code changes.
+- The scheduler in an SMP system can dynamically re-prioritize tasks
+- This dynamic task prioritization enables other tasks to run while the current task sleeps
+- An SMP system will by definition have shared memory between cores in the cluster
+- To maintain the required level of abstraction to application software, the hardware must take care of providing a consistent and coherent view of memory for you.
+- Changes to shared regions of memory must be visible to all cores without any explicit software coherency management.
+
+task scheduler:
+---------------
+- typically called using a timer interrupt
+- is responsible for time-slicing the available cycles on cores between multiple tasks
+- OS task scheduler can distribute tasks across available cores in the system.
+- This feature, known as load balancing, is aimed at obtaining better performance, or energy savings or even both
+
+ISA
+----
+- An ISA is a structure of commands and operations used by software to communicate with hardware
+- The ISA is roughly the same as the programming model of a processor as seen by an assembly language programmer or compiler writer. 
+
+microarchitecture
+-----------------
+- A microarchitecture is a hardware implementation of an ISA 
+- A microarchitecture is the hardware circuitry that implements one particular ISA.
+- Different microarchitectures can implement same ISA
+- The microarchitecture consists of ALU, register files, FPU
 
 
+Computer architecture:
+----------------------
+is the combination of microarchitecture and instruction set architecture. 
+
+--------------------------------------------------------------------------------
+Asymmetric multi-processing
+--------------------------------------------------------------------------------
+- In an AMP system, you can statically assign individual roles to a core within a cluster
+- you have separate cores, each performing separate jobs, within each cluster.
+- typically means that you have separate operating systems running on the individual cores
+- In an AMP system, each task can have a different view of memory 
+- there is no scope for a core that is highly loaded to pass work to one that is lightly loaded.
+- no requirement for hardware cache coherency in such systems
+- Reasons for implementing an AMP system using a multi-core processor might include 
+  -- security
+  -- a requirement for guaranteeing meeting of real-time deadlines, or 
+  -- because individual cores are dedicated to perform specific tasks.
+- It is entirely possible and normal to build AMP systems in which individual cores are running different operating systems
+--------------------------------------------------------------------------------
+Cache coherency
+--------------------------------------------------------------------------------
+- Coherency is about ensuring all processors, or bus masters in the system see the same view of memory
+- It means that changes to data held in the cache of one core are visible to the other cores
+
+There are three mechanisms to maintain coherency:
+Disable caching
+This is the simplest mechanism but might cost significant core performance. To
+get the highest performance processors are pipelined to run fast, and to run from
+caches that offer a very low latency. Caching of data that is accessed multiple
+times increases performance significantly and reduces DRAM accesses and
+power. Marking data as “non-cached” could impact performance and power.
+
+Software managed coherency
+Software managed coherency is the traditional solution to the data sharing
+problem. Here the software, usually device drivers, must clean or flush dirty data
+from caches, and invalidate old data to enable sharing with other processors or
+masters in the system. This takes processor cycles, bus bandwidth, and power.
+Where there are high rates of sharing between requesters the cost of software
+cache maintenance can be significant, and can limit performance.
+
+Hardware managed coherency
+Hardware Coherency is the most efficient solution. Any data marked ‘shared’ in
+a hardware coherent system will always be up to date. All cores and bus masters
+in that sharing domain see the exact same value.
+While hardware coherency might add some complexity to the interconnect and
+clusters, it greatly simplifies the software and enables applications that would not
+be possible with software coherency.
+--------------------------------------------------------------------------------
+MESI and MOESI protocols
+--------------------------------------------------------------------------------
+- There are a number of standard ways by which cache coherency schemes can operate. 
+- Most ARM processors use the MOESI protocol, 
+- while the Cortex-A9 uses the MESI protocol.
+
+--------------------------------------------------------------------------------
+Snoop Control Unit
+--------------------------------------------------------------------------------
+- SCU maintains coherency between the L1 data cache of each core
+- Since executable code changes much less frequently, this functionality is not extended to the L1 instruction caches
+- coherency management is implemented using a MOESI-based protocol, optimized to decrease the number of external memory accesses
+- The core performing the access is configured to participate in the Inner Shareable domain, configured using the operating system at boot time
+- The SCU can only maintain coherency within a single cluster.
+
+- If there are additional processors or other bus masters in the system, explicit software synchronization is required when these share memory with the MP block.
+  Alternatively, the Accelerator Coherency Port (ACP) can be used.
+
+--------------------------------------------------------------------------------
+Accelerator Coherency Port(ACP)
+--------------------------------------------------------------------------------
+- is a feature of the Cortex-A5, Cortex-A9, Cortex-A12 and Cortex-A15 processors
+- It provides an AXI slave interface into the Snoop Control Unit of the processor.
+- This slave interface can be connected to an external uncached AXI master, such as a DMA engine
+- Use of the ACP can both increase performance and save power, as there will be reduced traffic to external memory and faster execution
+- Programmers writing device drivers that use the ACP do not have to be concerned with coherency issues, because no cache cleaning or invalidation is required to ensure coherency.
+- the use of memory barriers (DMB) or external cache synchronization operations can still be necessary, if a particular ordering must be enforced.
+--------------------------------------------------------------------------------
+Exclusive Access
+--------------------------------------------------------------------------------
+- In an SMP system, data accesses frequently have to be restricted to one modifier at any particular time.
+- This can be true for peripheral devices, but also for global variables and data structures accessed by more than one thread or process
+
+reentrant code:
+Code is reentrant if it can be interrupted in the middle of its execution and then be called again before the previous invocation has completed.
+
+Single core systems:
+In a single core system, mutual exclusion can be achieved by disabling interrupts when inside critical sections
+
+Multi core systems:
+- This is not sufficient in a multi-core system, as disabling interrupts on one core will not prevent others from entering the critical section.
+- In a multi-core system, we can use a spinlock
+# effectively a shared flag with an atomic (indivisible) mechanism to test and set its value
+# We perform this operation in a tight loop to wait until another thread (or core) clears the flag
+# We require hardware assistance in the form of special machine instructions to implement this
+# The ARM architecture provides three instructions relating to exclusive access.
+LDREX (Load Exclusive):
+	performs a load of memory, but also tags the physical address to be monitored for exclusive access by that core.
+
+STREX (Store Exclusive):
+	performs a conditional store to memory, succeeding only if the target location is tagged as being monitored for exclusive access by that core. 
+	This instruction returns the value of 1 in a general purpose register if the store does not take place, and a value of 0 if the store is successful.
+
+CLREX (Clear Exclusive):
+	clears any exclusive access tag for that core.	
+
+- Load Exclusive and Store Exclusive operations must be performed only on Normal memory
+- have slightly different effect depending on whether the memory is marked as Shareable or not
+
+locking Shareable memory:
+- If the core reads from Shareable memory with an LDREX, the load happens and that physical address is tagged to be monitored for exclusive access by that core.
+- If any other core writes to that address and the memory is marked as Shareable, the tag is cleared
+
+locking non Shareable memory:
+- If the memory is not Shareable then any attempt to write to the tagged address by the one that tagged it results in the tag being cleared.
+
+Common to both Shareable and non shareable memory:
+- If the core does an additional LDREX to a different address, the tag for the previous LDREX address is cleared.
+- Each core can only have one address tagged.
+
+STREX can be considered as a conditional store. The store is performed only if
+the physical address is still marked as exclusive access. (this means it was
+previously tagged by this core and no other core has since written to it).
+
+- STREX returns a status value showing if the store succeeded. 
+- STREX always clears the exclusive access tag.
+
+Above intstructions are used on single core too:
+- The use of these instructions is not limited to multi-core systems. In fact, they are frequently
+employed in single core systems, to implement synchronization operations between threads
+running on the same core.
+
+Local Monitor:
+- In hardware, the core includes a device named the local monitor
+- This monitor observes the core
+- When the core performs an exclusive load access, it records that fact in the local monitor.
+- When it performs an exclusive store, it checks that a previous exclusive load was performed and fails the exclusive store if this was not the case
+- The core can only tag one physical address at a time
+- An LDREX from a particular address can be followed shortly after by an STREX to the same location, before an LDREX from a different address is performed
+- This is because the local monitor does not have to store the address of the exclusive tag
+- The architecture enables the local monitor to treat any exclusive store as matching a previous LDREX address.
+- use of the CLREX instruction to clear an existing tag is required on context switches.
+
+global monitor:
+- Where exclusive accesses are used to synchronize with external masters outside the core, or to regions marked as Sharable even between cores in the same cluster
+- global monitor within the hardware system takes care of this
+- 
