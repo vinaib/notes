@@ -59,3 +59,15 @@ TFTP_OPTIONS="--secure"
 
 14) command to check tftp
 ps -aef | grep tftp
+
+15) sudo mkdir -p /var/lib/tftpboot
+
+# Check tftpd-hpa is running or not
+16) service tftpd-hpa status
+service tftpd-hpa <options>
+<options>
+force-reload
+restart
+start
+status
+stop

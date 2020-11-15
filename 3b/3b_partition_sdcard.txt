@@ -23,3 +23,79 @@ Creating Partitons
 ## press and hold the S2 button (Boot button)
 ## press the S3 button (Power button)
 ## Release S2 button
+
+# create partitions using fdisk
+## connect sdcard. if it has partitions then unmount it 
+## in this example on connecting of sd card it had two partitions.
+## sudo umount /dev/sdb1
+## sudo umount /dev/sdb2
+
+## sudo fdisk /dev/sdb
+p - to print existing partition on sd card
+d - to delete partition
+m - for help
+command: d 
+select partition: 1
+Partition 1 will be deleted
+#delete the second partiion too
+
+#create new parition
+command : n
+partition type:
+p: primary
+e: extended
+command : p
+parition number(1 - 4, default 1): 1
+First sector: default value
+Last sector: provide size of primary partition: +32M
+
+Do you want to remove signature? Y
+Signature will be removed by write command
+
+# create second parition for rootfs: Give all the remaining space to this partition
+command: n
+partiion type: p 
+partition number: 2
+First sector: default
+Last Sector: default
+
+Created new partition 2 of type LInux and of size 
+Do you want to remove siganture? it asks only if earlier partition had any filesystem signature.
+
+# Make the first partiton bootable by setting the boot flag.
+command: a
+partition number: 1
+the bootable flag on partition 1 is enabled.
+
+# set partition 1 with fat32
+command: t
+partition number: 1
+Hex code: c select for W95 FAT32(LBA)
+
+# set the partition 2 with ext2
+command: t
+partition number: 2
+Hex code: 83 (Linux) it will be ext3/4
+
+command: p
+# write the partition table to /dev/sdb
+command: w 
+
+# format the parttion /dev/sdb1 with fat32 and label it with BOOT
+sudo mkfs.vfat -n "BOOT" /dev/sdb1
+
+# format the partition /dev/sdb2 with ext3/4 and label it with ROOTFS
+sudo mkfs.ext4 -L "ROOTFS" /dev/sdb2
+
+# copy MLO, uboot, kernel, dtb to BOOT partition
+sudo cp MLO /media/$USER/BOOT
+sudo cp uboot.img /media/$USER/BOOT
+sudo cp zImgae /media/$USER/BOOT
+sudo cp am335x-boneblack.dtb /media/$USER/BOOT
+
+# extract rootfs to /media/$USER/ROOT
+sudo tar -xf core-image-minimal-beaglebone-yocto.tar.bz2 -C /media/$USER/ROOT
+sync
+
+
+

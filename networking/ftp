@@ -1,0 +1,64 @@
+source:
+[1] https://linuxconfig.org/how-to-setup-ftp-server-on-ubuntu-20-04-focal-fossa-linux
+[2] https://websiteforstudents.com/install-and-configure-vsftpd-on-ubuntu-20-04-18-04/
+
+
+FTP server using VSFTPD
+
+# install vsftpd
+sudo apt install vsftpd
+
+# configure vsftpd
+sudo mv /etc/vsftpd.conf /etc/vsftpd.conf_orig
+
+# sudo nano /etc/vsftpd.conf
+
+# Default values
+listen=NO
+listen_ipv6=YES
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+use_localtime=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+chroot_local_user=YES
+secure_chroot_dir=/var/run/vsftpd/empty
+pam_service_name=vsftpd
+rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+ssl_enable=NO
+pasv_enable=Yes
+pasv_min_port=10000
+pasv_max_port=10100
+allow_writeable_chroot=YES
+
+# verify status
+service vsftpd status
+
+sudo systemctl restart vsftpd
+
+# enable vsftpd
+sudo systemctl enable vsftpd
+
+# Start VSFTPD
+sudo systemctl start vsftpd
+
+# if ufw is running
+sudo ufw allow from any to any port 20,21,10000:10100 proto tcp
+
+# create ftp user
+sudo useradd -m ftpuser
+sudo passwd ftpuser
+create password for ftpuser
+
+# Users restrictions
+If you don’t want all local users with account on the system to upload file, 
+then you can limit access to only users that are on the allowed list. This 
+option only allow users who are explicitly specified in the file.
+
+userlist_enable=YES
+userlist_file=/etc/vsftpd.user_list
+userlist_deny=NO

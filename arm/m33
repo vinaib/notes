@@ -1,0 +1,100 @@
+About:
+- Cortex-M33 processor is a high-performance 32-bit processor
+- Cortex-M33 processor is built on a high-performance processor core, with a 3-stage pipeline Harvard architecture.
+- IEEE754-compliant single-precision floating-point computation.
+- Single Instruction Multiple Data (SIMD) multiplication and multiply-with-accumulate capabilities.
+- Saturating arithmetic and dedicated hardware division.
+- is an in-order processor
+- Cortex-M33 processor implements the T32 instruction set based on Thumb ® -2 technology, ensuring high code density and reduced program memory requirements.
+- Power control optimization of system components.
+- Integrated sleep modes for low power consumption.
+- Armv8‐M Security Extension.
+- Fast code execution permits slower processor clock or increases sleep mode time.
+- Hardware integer division and fast multiply accumulate for digital signal processing.
+- Saturating arithmetic for signal processing.
+- Deterministic, high-performance interrupt handling for time-critical applications.
+- MPU and SAU for safety-critical applications.
+- Extensive debug and trace capabilities.
+
+In-order processors:
+- Instruction fetch.
+- If input operands are available, the instruction is dispatched to the appropriate functional unit. 
+  If one or more operands are unavailable during the current clock cycle ,the processor stalls until 
+  they are available.
+- The instruction is executed by the appropriate functional unit.
+- The functional unit writes the results back to the register file.
+
+Out-of-order processors:
+- Instruction fetch.
+- Instruction dispatch to an instruction queue.
+- The instruction waits in the queue until its input operands are available. The instruction is then allowed to leave the queue before earlier, than older instructions.
+- The instruction is issued to the appropriate functional unit and executed by that unit.
+- The results are queued.
+- Only after all older instructions have their results written back to the register file, then this result is written back to the register file. This is called the graduation or retire stage.
+
+- The key concept of OoOE processing is to allow the processor to avoid a class of stalls that occur when the data needed to perform an operation are unavailable. 
+- In the outline above, the OoOE processor avoids the stall that occurs in step (2) of the in-order processor when the instruction is not completely ready to be processed due to missing data. 
+- OoOE processors fill these "slots" in time with other instructions that are ready, then re-order the results at the end to make it appear that the instructions were processed as normal.
+- Program order: The way the instructions are ordered in the original computer code is known as program order, 
+- Data order: in the processor they are handled in data order, the order in which the data, operands, become available in the processor's registers. 
+
+Nested Vectored Interrupt Controller(NVIC):
+- Cortex-M33 processor closely integrates a configurable Nested Vectored Interrupt Controller
+- The tight integration of the processor core and NVIC provides fast execution of Interrupt Service Routines (ISRs), this tight integration reduces latency
+- What is this tight integration? How different is it from other processors?
+- achieved through
+• The hardware stacking of registers.
+• The ability to suspend load multiple and store multiple operations.
+• Parallel instruction-side and data-side paths.
+• Tail-chaining.
+• Late-arriving interrupts.
+- To optimize low-power designs, the NVIC supports different sleep modes.
+- including a deep sleep function that enables the entire device to be rapidly powered down while still retaining program state.
+
+Dual Issue:
+- To increase instruction throughput, the Cortex-M33 processor can execute certain pairs of 16-bit instructions simultaneously. This is called dual issue.
+
+- includes a non-maskable interrupt
+- provides up to 256 interrupt priority levels for other interrupts.
+
+System level interface:
+- Arm AMBA 
+
+Security extensions:
+- A processor with the Security Extension supports both Non-secure and Secure states
+- The four modes of operation are:
+• Non-secure Thread mode
+• Non-secure Handler mode
+• Secure Thread mode
+• Secure Handler mode
+
+With security extensions
+- Processor resets to secure state
+- Some registers are banked between Security states. 
+- There are two separate instances of the same register, one in Secure state and one in Non-secure state
+- The architecture allows the Secure state to access the Non-secure versions of banked registers.
+- Interrupts can be configured to target one of the two Security states.
+- Secure memory can only be accessed from Secure state.
+
+Processor core peripherals
+- Nested Vectored Interrupt Controller
+- System Control Space
+= The SCS is the programmer's model interface to the processor.
+= It provides system implementation information and system control.
+- System timer
+= SysTick, is a 24 bit count-down timer.
+= Use this as a Real Time Operating System (RTOS) tick timer or as a simple counter.
+= In an implementation with the Security Extension, there are two SysTicks, one Secure and one Non-secure.
+- Security Attribution Unit
+= The SAU improves system security by defining security attributes for different regions
+= It provides up to eight different regions and a default background region.
+- Memory Protection Unit
+= The MPU improves system reliability by defining the memory attributes for different memory regions.
+= It provides up to 16 different regions,
+= an optional predefined background region.
+= When the Security Extension is included, there can be two MPUs, 
+= one Secure and one Non-secure. Each MPU can define memory attributes independently.
+- Floating-point Unit
+= IEEE754-compliant operations on 32-bit single precision floating-point values.
+
+
