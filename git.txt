@@ -192,6 +192,9 @@ git branch					# at this point two branches are there, this command will list bo
 git hist					# checkout all history, shows even branching information.
 git diff master updates				# diff between branches
 
+# Creating branch from commit id
+git checkout -b <branch name> <commit-id>
+
 # switch to other branch
 git checkout <branch name>			# switch to given branch name
 git checkout master				# switch to master branch. Please note that before switching to other branch all current changes 
