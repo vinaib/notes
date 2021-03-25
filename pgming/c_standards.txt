@@ -1,0 +1,56 @@
+#C89 Standard 
+- 1989
+- C89 is universally supported
+- Declaration of variables
+  - required to declare at top of the function
+  - and not inside the loop
+    int i;
+    for(i=0;i<10;i++)
+
+#C99 Standard
+- added stdbool.h, true/false keywords: bool <var_name>
+- variable length arrays
+  - Array dimension has to be declared in C89
+  - C99 permits declaration of array dimensions using integer varaibles or any
+    valid integer expressions
+- flexible array numbers
+  - allows us to declare an array of unspecified length as the last member of a
+    struct
+- Declaration of variables
+  - it is now legal to declare variables it at any point of the program with in
+    curly braces of main() function
+  - very obvious in loops
+    for(int i=0;i<10;i++)
+- single line comments (//)
+- not all popular C compilers support it
+- the compilers that do offer this standard, most support only a subset of
+  language
+- macros with variable number of arguments
+- complex.h: used to declare complex floating type variables to store
+  mathematical complex numbers and declare imaginary floating data type
+  varaibles used to store mathematical imaginary numbers.
+- restricted pointers
+- inline functions
+
+#C11 Standard: added were more advanced concepts
+- multithreading support
+  - c has supported multithreading for decades, however all popular C threading
+    libraries are non standard extensions, and hence non portable
+  - the new C11 header file <threads.h>: declares functions for creating and
+    managing threads, mutexes, condition variables. Windows does not support it
+- safer standard libraries
+  scanf_s, and string functions with _s
+  removal of gets functions
+- better compliance with other industry standards
+- some mandatory features of C99 (variable length arrays, complex types) are
+  optional
+- also focuses on better compatibility with c++ as much as possible
+- defines a memory model that better suits multithreading
+- support for anonymous structs and unions
+  - has neither a tag name nor a typedef name
+  - useful when unions and structures are nested
+
+- static assertions
+  - evaluated during translation at a later phase than  #if and #error
+  - let you catch errors that are impossible to detect the preprocessing phase
+
