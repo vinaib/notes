@@ -63,6 +63,14 @@ Normal			-								Outer Shareable		One of:
 Normal			-								Inner Shareable		NonCacheable
 Normal			-								Non   Shareable		WriteThrough
 																	WriteBack
+------------------------------------------------------------------------------------
+[ref]: https://developer.arm.com/documentation/ddi0211/k/memory-management-unit/memory-attributes-and-types
+
+-> Normal - Shared - Noncacheable/ Write-Through Cacheable/ Write-Back Cacheable - Designed to handle normal memory that is shared between several processors.
+-> Normal - Non-Shared - Noncacheable/ Write-Through Cacheable/ Write-Back Cacheable - Designed to handle normal memory that is used only by a single processor.
+-> Device - Shared - Designed to handle memory-mapped peripherals that are shared by several processors.
+-> Device - Non-Shared - Designed to handle memory-mapped peripherals that are used only by a single processor.
+-> Strongly Ordered - All memory accesses to Strongly Ordered memory occur in program order. All Strongly Ordered accesses are assumed to be shared.
 
 -------------------------------------------------------------------------------
 # Normal Memory

@@ -131,13 +131,17 @@ asm volatile (assembler instructions : output operands (optional) : input operan
 - Third part is an (optional) list of input values for the sequence, with the same format as the output
 
 Important Note:
-- If you don’t specify an output operand for an assembly sequence, it is quite likely that the C compiler optimizer will decide that it is not serving any useful purpose and optimize it away! 
+- If you don’t specify an output operand for an assembly sequence, it is quite
+  likely that the C compiler optimizer will decide that it is not serving any
+  useful purpose and optimize it away!
 - A way to avoid this is to use the "volatile attribute" that tells GCC not to optimize the sequence.
 
 - In the actual assembly language statement, operands are referenced by a percent sign followed by the symbolic name in square brackets
 - The symbolic name references the item with the same name in either the input or output operand list
 - This name is completely distinct from any other symbol within your C code
-- Alternatively, the name can be omitted and the operand can be specified using a percent sign followed by a digit indicating the position of the operand in the list (that is, %0 , %1 ... %9 )
+- Alternatively, the name can be omitted and the operand can be specified using
+  a percent sign followed by a digit indicating the position of the operand in
+the list (that is, %0 , %1 ... %9 )
 - fourth part is (optional)	called the clobber list. 
 Clobber list:
 - This enables you to specify to the compiler what will be changed by the assembly code. 
@@ -163,9 +167,23 @@ TODO: instructs that input parameters in stack, not in registers
 Example:
 TODO
 
+--------------------------------------------------------------------------------
+asm volatile("" ::: "memory"):
+--------------------------------------------------------------------------------
+[ref]: https://stackoverflow.com/questions/14950614/working-of-asm-volatile-memory
+[ref]: https://developer.arm.com/documentation/ddi0211/k/memory-management-unit/memory-attributes-and-types
 
+- creates a compiler level memory barrier forcing optimizer to not re-order memory accesses across the barrier.
 
+For example:
+- if you need to access some address in a specific order (probably because that
+  memory area is actually backed by a different device rather than a memory) you
+need to be able tell this to the compiler otherwise it may just optimize your
+steps for the sake of efficiency.
 
-
-
-
+- It should be noted that this is only compile time memory barrier to avoid
+  compiler to reorder memory accesses, 
+- As it puts no extra hardware level instructions to flush memories or wait for load or stores to be completed. 
+- CPUs can still reorder memory accesses if they have the architectural
+  capabilities and memory addresses are on normal type instead of strongly
+ordered or device
