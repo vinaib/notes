@@ -1,0 +1,134 @@
+IDE Download:
+-------------
+code.visualstudio.com
+
+Marketplace for plugins:
+------------------------
+https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools
+or
+marketplace from visual studio IDE
+
+Documentation: 
+--------------
+code.visualstudio.com/docs/getstarted/userinteface
+
+Settings:
+---------
+code.visualstudio.com/docs/getstarted/settings
+
+tips+tricks:
+------------
+code.visualstudio.com/docs/getstarted/tips-and-tricks
+
+commands:
+---------
+ctrl + shift + p : opens command pallete
+
+ctrl + p : navigate file
+
+ctrl + tab 
+
+ctrl + shift + o : navigate symbol in a file
+
+ctrl + g : navigate a line
+
+ctrl + shift + B : build and run the task
+
+workspace:
+---------
+- different directroy for each program
+- create directory for each program in workspace
+- go to directory and run "code ." this will launch vs code ide, and create
+  workspace
+
+Configuring compiler path:
+--------------------------
+1) ctrl + shift + p or select view -> command palette
+2) search c/c++: Edit Configuration
+
+compiler path: 
+/usr/bin/gcc for linux
+c:/cygwin64/bin/gcc.exe for windows
+
+3) intellisense mode:
+select gcc-x64 for windows
+for linux, these values are filled automatically
+
+Build Tasks:
+------------
+1) ctrl + shift + p or select view -> command palette
+2) search for "Tasks" Choose "Configure and build tasks"2) search for "Tasks"
+ - Choose "Configure Default build tasks"
+ - On selecting, IDE will show option "Create tasks.jason file from template". Choose it.
+ - and this further show few options, scroll down and select option "Others".
+ - this creates default task
+ - here we can set: options for compiler arguments and also set command op
+3) in tasks.json
+ - set label to "appropriate" like "build hello world"
+ - set command to "gcc" from "echo hello"
+ - add new: for compiler arguments
+   "args": [
+	"-g",
+	"-o",		//object file
+	"hello world", 	//object file name
+	"hello.c"	//source files
+	],		// comma at the end of square bracket
+
+   "group": {
+	"kind": "build",
+	"isDefault": true
+	}
+
+Debug settings:
+---------------
+1) ctrl + shift + p or select view -> command palette
+2) type "launch"
+Debug: Open launch.json
+this is used to configure debugger in visual studio code
+select GDB/LLDB environment
+Modify: 
+"program": so that it points to correct path of executable
+"stopAtEntry": true
+"miDebuggerPath":"/usr/bin/gdb"
+"C:\cygwin64\bin\gdb.exe" for windows
+
+
+{
+    "version": "0.2.0"
+    "configurations": [
+        {
+            "name":"(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/hworld",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd":".",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true                    
+                }
+            ]
+        }
+    ]
+}
+
+Setup Shell:
+-----------
+- do it only on windows
+1) ctrl + shift + p or select view -> command palette
+type in settings:
+open Settings.json
+
+set:
+"terminal.integrated.shell.windows":"C:\\cygwin64\\bin\\bash.exe"
+
+Build:
+------
+ctrl + shift + B
